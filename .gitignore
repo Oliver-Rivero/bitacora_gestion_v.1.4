@@ -1,0 +1,36 @@
+# Dependencias
+node_modules/
+
+# Compilación y Salida
+dist/
+dist-ssr/
+out/
+release/
+build/
+*.dmg
+*.pkg
+*.zip
+
+# Datos y Base de Datos (Personal)
+backups/
+*.db
+*.sqlite
+*.sqlite3
+finanzas.db
+
+# Iconos y Diseño
+iconoPhotoshop.psd
+
+# Entorno
+.env
+.env.*
+!.env.example
+
+# Logs y Cache
+npm-debug.log*
+.eslintcache
+.DS_Store
+
+# VS Code
+.vscode/
+!.vscode/extensions.json
