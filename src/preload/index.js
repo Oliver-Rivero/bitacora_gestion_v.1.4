@@ -18,6 +18,7 @@ const api = {
   // Transactions
   getTransactions: () => ipcRenderer.invoke('db-get-transactions'),
   addTransaction: (data) => ipcRenderer.invoke('db-add-transaction', data),
+  editTransaction: (data) => ipcRenderer.invoke('db-edit-transaction', data),
   deleteTransaction: (id) => ipcRenderer.invoke('db-delete-transaction', id),
 
   // Utilities

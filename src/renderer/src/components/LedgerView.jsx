@@ -157,8 +157,8 @@ export default function LedgerView() {
     e.preventDefault()
     const txn = {
       ...formData,
-      amount: parseFloat(formData.amount),
-      categoryId: parseInt(formData.categoryId),
+      amount: parseFloat(formData.amount) || 0,
+      categoryId: formData.categoryId ? parseInt(formData.categoryId) : null,
       subcategoryId: formData.subcategoryId ? parseInt(formData.subcategoryId) : null,
       entityId: parseInt(formData.entityId),
       toEntityId: formData.toEntityId ? parseInt(formData.toEntityId) : null,
