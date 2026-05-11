@@ -96,7 +96,7 @@ export default function DashboardView() {
       if (t.type === 'ingreso') {
         if (isCurrentMonth) monthlyIncome += t.amount
         if (isCurrentYear) yearlyIncome += t.amount
-      } else if (t.type === 'gasto') {
+      } else if (t.type === 'gasto' || t.type === 'ahorro' || t.type === 'inversion') {
         if (isCurrentMonth) monthlyExpenses += t.amount
         if (isCurrentYear) yearlyExpenses += t.amount
       }
@@ -124,7 +124,7 @@ export default function DashboardView() {
       }
 
       if (t.type === 'ingreso') monthlyData[monthKey].ingresos += t.amount
-      if (t.type === 'gasto') {
+      if (t.type === 'gasto' || t.type === 'ahorro' || t.type === 'inversion') {
         monthlyData[monthKey].gastos += t.amount
         
         // Filter based on expenseView and selected period
@@ -136,8 +136,8 @@ export default function DashboardView() {
         }
 
         if (include) {
-            const catName = t.categoryName || 'Otros'
-            const subName = t.subcategoryName || 'Otros'
+            const catName = t.type === 'ahorro' ? 'Ahorro' : t.type === 'inversion' ? 'Inversión' : (t.categoryName || 'Otros')
+            const subName = t.type === 'ahorro' ? 'General' : t.type === 'inversion' ? 'General' : (t.subcategoryName || 'Otros')
 
             if (!categoryAllocation[catName]) {
               categoryAllocation[catName] = { name: catName, value: 0, subcategories: {} }

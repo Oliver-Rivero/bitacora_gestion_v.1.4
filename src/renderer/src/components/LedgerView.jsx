@@ -18,6 +18,7 @@ export default function LedgerView() {
     savingsGoals, 
     addRecurringTransaction,
     editTransaction,
+    deleteTransaction,
     ledgerFormRequested,
     setLedgerFormRequested
   } = useData()
@@ -89,7 +90,7 @@ export default function LedgerView() {
   const applyQuickFilter = (type) => {
     setQuickFilter(type)
     const now = new Date()
-    if (type === 'all') {
+    if (type === 'all' || type === 'highValue' || type === 'recurring' || type === 'subscriptions') {
       setDateRange({ start: '', end: '' })
     } else if (type === 'thisMonth') {
       const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
@@ -148,10 +149,16 @@ export default function LedgerView() {
       let matchesDate = true
       if (dateRange.start && t.date < dateRange.start) matchesDate = false
       if (dateRange.end && t.date > dateRange.end) matchesDate = false
+
+      // Smart Filters
+      let matchesSmart = true
+      if (quickFilter === 'highValue' && (t.type !== 'gasto' || t.amount < 100)) matchesSmart = false
+      if (quickFilter === 'recurring' && !t.recurringDay) matchesSmart = false
+      if (quickFilter === 'subscriptions' && !t.tags?.toLowerCase().includes('suscrip')) matchesSmart = false
       
-      return matchesSearch && matchesType && matchesDate
+      return matchesSearch && matchesType && matchesDate && matchesSmart
     })
-  }, [transactions, search, filterType, dateRange])
+  }, [transactions, search, filterType, dateRange, quickFilter])
 
   const handleAdd = async (e) => {
     e.preventDefault()
@@ -306,10 +313,12 @@ export default function LedgerView() {
                     onChange={(e) => setSearch(e.target.value)}
                   />
                 </div>
-                <select style={{ width: 150 }} value={filterType} onChange={(e) => setFilterType(e.target.value)}>
+                <select style={{ width: 170 }} value={filterType} onChange={(e) => setFilterType(e.target.value)}>
                   <option value="all">Todos los tipos</option>
                   <option value="gasto">Gastos</option>
                   <option value="ingreso">Ingresos</option>
+                  <option value="ahorro">Ahorro</option>
+                  <option value="inversion">Inversión</option>
                   <option value="transferencia">Transferencias</option>
                 </select>
               </div>
@@ -319,6 +328,9 @@ export default function LedgerView() {
                   <button className={clsx('segment-item', quickFilter === 'all' && 'active')} style={{ fontSize: 11, padding: '4px 12px' }} onClick={() => applyQuickFilter('all')}>Todo</button>
                   <button className={clsx('segment-item', quickFilter === 'thisMonth' && 'active')} style={{ fontSize: 11, padding: '4px 12px' }} onClick={() => applyQuickFilter('thisMonth')}>Este Mes</button>
                   <button className={clsx('segment-item', quickFilter === 'lastMonth' && 'active')} style={{ fontSize: 11, padding: '4px 12px' }} onClick={() => applyQuickFilter('lastMonth')}>Mes Pasado</button>
+                  <button className={clsx('segment-item', quickFilter === 'highValue' && 'active')} style={{ fontSize: 11, padding: '4px 12px' }} onClick={() => applyQuickFilter('highValue')}>Gastos > 100€</button>
+                  <button className={clsx('segment-item', quickFilter === 'recurring' && 'active')} style={{ fontSize: 11, padding: '4px 12px' }} onClick={() => applyQuickFilter('recurring')}>Recurrentes</button>
+                  <button className={clsx('segment-item', quickFilter === 'subscriptions' && 'active')} style={{ fontSize: 11, padding: '4px 12px' }} onClick={() => applyQuickFilter('subscriptions')}>Suscripciones</button>
                   <button className={clsx('segment-item', quickFilter === 'custom' && 'active')} style={{ fontSize: 11, padding: '4px 12px' }} onClick={() => setQuickFilter('custom')}>Personalizado</button>
                 </div>
 
@@ -364,8 +376,18 @@ export default function LedgerView() {
                           fontSize: 10, 
                           fontWeight: 600,
                           textTransform: 'uppercase',
-                          background: t.type === 'ingreso' ? 'rgba(108,165,123,0.1)' : t.type === 'gasto' ? 'rgba(192,104,104,0.1)' : 'rgba(126,145,177,0.1)',
-                          color: t.type === 'ingreso' ? 'var(--success)' : t.type === 'gasto' ? 'var(--danger)' : 'var(--accent)'
+                          background: 
+                            t.type === 'ingreso' ? 'rgba(108,165,123,0.1)' : 
+                            t.type === 'gasto' ? 'rgba(192,104,104,0.1)' : 
+                            t.type === 'ahorro' ? 'rgba(126,145,177,0.15)' :
+                            t.type === 'inversion' ? 'rgba(162,155,189,0.15)' :
+                            'rgba(126,145,177,0.1)',
+                          color: 
+                            t.type === 'ingreso' ? 'var(--success)' : 
+                            t.type === 'gasto' ? 'var(--danger)' : 
+                            t.type === 'ahorro' ? 'var(--accent)' :
+                            t.type === 'inversion' ? '#827A9E' :
+                            'var(--accent)'
                         }}>
                           {t.type}
                         </span>
@@ -375,8 +397,8 @@ export default function LedgerView() {
                         <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t.subcategoryName || ''}</div>
                       </td>
                       <td>{t.entityName} {t.toEntityName && `→ ${t.toEntityName}`}</td>
-                      <td style={{ fontWeight: 600, color: t.type === 'ingreso' ? 'var(--success)' : t.type === 'gasto' ? 'var(--danger)' : 'inherit' }}>
-                        {t.type === 'gasto' ? '-' : t.type === 'ingreso' ? '+' : ''} {formatCurrency(t.amount)}
+                      <td style={{ fontWeight: 600, color: t.type === 'ingreso' ? 'var(--success)' : (t.type === 'gasto' || t.type === 'ahorro' || t.type === 'inversion') ? 'var(--danger)' : 'inherit' }}>
+                        {(t.type === 'gasto' || t.type === 'ahorro' || t.type === 'inversion') ? '-' : t.type === 'ingreso' ? '+' : ''} {formatCurrency(t.amount)}
                       </td>
                       <td style={{ fontSize: 12, color: 'var(--text-muted)', maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.note}</td>
                       <td style={{ textAlign: 'right' }}>
@@ -450,9 +472,11 @@ export default function LedgerView() {
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Tipo</label>
-                  <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>
+                  <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value, categoryId: '', subcategoryId: ''})}>
                     <option value="gasto">Gasto</option>
                     <option value="ingreso">Ingreso</option>
+                    <option value="ahorro">Ahorro</option>
+                    <option value="inversion">Inversión</option>
                     <option value="transferencia">Transferencia</option>
                   </select>
                 </div>
@@ -482,7 +506,7 @@ export default function LedgerView() {
                 </div>
               )}
 
-              {formData.type !== 'transferencia' && (
+              {(formData.type === 'gasto' || formData.type === 'ingreso') && (
                 <div style={{ display: 'flex', gap: 12 }}>
                   <div style={{ flex: 1 }}>
                     <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Categoría</label>
@@ -517,29 +541,19 @@ export default function LedgerView() {
                 </div>
               )}
 
-              {formData.type === 'gasto' && (
-                (() => {
-                  const sub = categories.find(c => c.id == formData.categoryId)?.subcategories.find(s => s.id == formData.subcategoryId)
-                  const isAhorro = sub?.name === 'Ahorro'
-                  
-                  if (isAhorro) {
-                    return (
-                      <div className="wizard-slide-enter" style={{ padding: '16px', background: 'rgba(126, 145, 177, 0.05)', borderRadius: 12, border: '1px solid var(--accent)' }}>
-                        <label style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 700, marginBottom: 8, display: 'block' }}>Vincular con Hucha</label>
-                        <select 
-                          value={formData.goalId} 
-                          onChange={e => setFormData({...formData, goalId: e.target.value})}
-                          style={{ border: '1px solid var(--accent)' }}
-                        >
-                          <option value="">Ninguna hucha seleccionada</option>
-                          {savingsGoals.map(g => <option key={g.id} value={g.id}>{g.name} ({formatCurrency(g.currentAmount)})</option>)}
-                        </select>
-                        <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 8 }}>Este gasto se sumará automáticamente al saldo de la hucha elegida.</p>
-                      </div>
-                    )
-                  }
-                  return null
-                })()
+              {formData.type === 'ahorro' && (
+                <div className="wizard-slide-enter" style={{ padding: '16px', background: 'rgba(126, 145, 177, 0.05)', borderRadius: 12, border: '1px solid var(--accent)' }}>
+                  <label style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 700, marginBottom: 8, display: 'block' }}>Vincular con Hucha</label>
+                  <select 
+                    value={formData.goalId} 
+                    onChange={e => setFormData({...formData, goalId: e.target.value})}
+                    style={{ border: '1px solid var(--accent)' }}
+                  >
+                    <option value="">Ninguna hucha seleccionada</option>
+                    {savingsGoals.map(g => <option key={g.id} value={g.id}>{g.name} ({formatCurrency(g.currentAmount)})</option>)}
+                  </select>
+                  <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 8 }}>Este ahorro se sumará automáticamente al saldo de la hucha elegida.</p>
+                </div>
               )}
 
               <div>

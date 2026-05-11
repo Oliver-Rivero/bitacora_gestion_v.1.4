@@ -101,7 +101,7 @@ function AppContent() {
             {theme === 'dark' ? 'Modo Claro' : 'Modo Oscuro'}
           </div>
           <div style={{ padding: '8px 12px', fontSize: 10, color: 'var(--text-muted)', opacity: 0.6 }}>
-            beta 1.1
+            beta 1.3
           </div>
         </div>
       </div>

@@ -46,7 +46,10 @@ const api = {
   deleteBudget: (id) => ipcRenderer.invoke('db-delete-budget', id),
   getIncomeForecasts: () => ipcRenderer.invoke('db-get-income-forecasts'),
   addIncomeForecast: (data) => ipcRenderer.invoke('db-add-income-forecast', data),
-  deleteIncomeForecast: (id) => ipcRenderer.invoke('db-delete-income-forecast', id)
+  deleteIncomeForecast: (id) => ipcRenderer.invoke('db-delete-income-forecast', id),
+  resetAllData: () => ipcRenderer.invoke('db-reset-all'),
+  exportDatabase: () => ipcRenderer.invoke('db-export'),
+  importDatabase: () => ipcRenderer.invoke('db-import')
 }
 
 if (process.contextIsolated) {

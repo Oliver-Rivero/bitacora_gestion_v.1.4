@@ -872,10 +872,14 @@ function ContributionModal({ goal, entities, mode, onClose, onSave }) {
         
         <div style={{ marginBottom: 20 }}>
           <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', textAlign: 'left', marginBottom: 4 }}>
-            {isWithdraw ? 'CUENTA DE DESTINO (OPCIONAL)' : 'CUENTA DE ORIGEN (OPCIONAL)'}
+            {isWithdraw ? 'CUENTA DE DESTINO' : 'CUENTA DE ORIGEN (OPCIONAL)'}
           </label>
-          <select value={entityId} onChange={e => setEntityId(e.target.value)}>
-            <option value="">Solo registro (sin afectar saldo)</option>
+          <select value={entityId} onChange={e => setEntityId(e.target.value)} required={isWithdraw}>
+            {isWithdraw ? (
+              <option value="">Seleccionar cuenta de destino...</option>
+            ) : (
+              <option value="">Solo registro (sin afectar saldo)</option>
+            )}
             {entities.map(e => <option key={e.id} value={e.id}>{e.name} ({formatCurrency(e.balance)})</option>)}
           </select>
           {entityId && <p style={{ fontSize: 10, color: 'var(--accent)', marginTop: 4, textAlign: 'left' }}>
@@ -899,7 +903,7 @@ function ContributionModal({ goal, entities, mode, onClose, onSave }) {
             className="btn" 
             style={{ flex: 1, justifyContent: 'center', background: isWithdraw ? 'var(--danger)' : 'var(--accent)', color: 'white' }} 
             onClick={() => onSave({ amount: Number(amount), entityId })} 
-            disabled={!amount}
+            disabled={!amount || (isWithdraw && !entityId)}
           >
             {isWithdraw ? 'Retirar' : 'Confirmar'}
           </button>

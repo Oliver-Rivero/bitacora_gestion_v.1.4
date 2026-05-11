@@ -146,6 +146,18 @@ export function setupDatabase() {
     db.prepare('ALTER TABLE recurring_transactions ADD COLUMN note TEXT').run()
   } catch (e) {}
 
+  try {
+    db.prepare('ALTER TABLE budget_items ADD COLUMN period TEXT DEFAULT "monthly"').run()
+  } catch (e) {}
+
+  try {
+    db.prepare('ALTER TABLE income_forecasts ADD COLUMN period TEXT DEFAULT "monthly"').run()
+  } catch (e) {}
+
+  try {
+    db.prepare('DELETE FROM categories WHERE name = "Finanzas"').run()
+  } catch (e) {}
+
   // Force seed categories if empty
   const count = db.prepare('SELECT COUNT(*) as count FROM categories').get().count
   if (count === 0) {
@@ -154,10 +166,9 @@ export function setupDatabase() {
       { name: 'Vehículo', type: 'gasto', subs: ['Combustible', 'Mantenimiento', 'Impuestos', 'Aparcamiento'] },
       { name: 'Personal', type: 'gasto', subs: ['Ropa', 'Farmacia', 'Gimnasio', 'Suplementos', 'Tecnología'] },
       { name: 'Ocio y entretenimiento', type: 'gasto', subs: ['Restaurantes', 'Suscripciones', 'Viajes', 'Cine', 'Teatro', 'Libros', 'Conciertos'] },
-      { name: 'Finanzas', type: 'gasto', subs: ['Ahorro', 'Inversión'] },
       { name: 'Ingresos', type: 'ingreso', subs: ['Nómina', 'Dietas', 'YouTube', 'Saldo inicial', 'Ajuste de saldo', 'Otros'] }
     ]
-
+    
     // Use a simple loop for maximum compatibility
     for (const c of cats) {
       const result = db.prepare('INSERT INTO categories (name, type) VALUES (?, ?)').run(c.name, c.type)

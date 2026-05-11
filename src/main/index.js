@@ -4,6 +4,8 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { setupDatabase, getDb } from './database.js'
 import { exec } from 'child_process'
 import { getConfig, setConfig } from './config'
+import fs from 'fs'
+import { dialog } from 'electron'
 // http import removed
 
 function createWindow() {
@@ -131,7 +133,7 @@ app.whenReady().then(() => {
       // Update entity balances
       if (type === 'ingreso') {
         db.prepare('UPDATE entities SET balance = balance + ? WHERE id = ?').run(amount, entityId)
-      } else if (type === 'gasto') {
+      } else if (type === 'gasto' || type === 'ahorro' || type === 'inversion') {
         db.prepare('UPDATE entities SET balance = balance - ? WHERE id = ?').run(amount, entityId)
         
         // IF goalId is present, also add contribution
@@ -155,7 +157,7 @@ app.whenReady().then(() => {
       // Revert balances
       if (txn.type === 'ingreso') {
         db.prepare('UPDATE entities SET balance = balance - ? WHERE id = ?').run(txn.amount, txn.entityId)
-      } else if (txn.type === 'gasto') {
+      } else if (txn.type === 'gasto' || txn.type === 'ahorro' || txn.type === 'inversion') {
         db.prepare('UPDATE entities SET balance = balance + ? WHERE id = ?').run(txn.amount, txn.entityId)
         
         // IF goalId was present, revert contribution
@@ -181,7 +183,7 @@ app.whenReady().then(() => {
       // 1. REVERT OLD IMPACT
       if (oldTxn.type === 'ingreso') {
         db.prepare('UPDATE entities SET balance = balance - ? WHERE id = ?').run(oldTxn.amount, oldTxn.entityId)
-      } else if (oldTxn.type === 'gasto') {
+      } else if (oldTxn.type === 'gasto' || oldTxn.type === 'ahorro' || oldTxn.type === 'inversion') {
         db.prepare('UPDATE entities SET balance = balance + ? WHERE id = ?').run(oldTxn.amount, oldTxn.entityId)
         if (oldTxn.goalId) {
           db.prepare('DELETE FROM savings_contributions WHERE goalId = ? AND amount = ? AND date = ?').run(oldTxn.goalId, oldTxn.amount, oldTxn.date)
@@ -202,7 +204,7 @@ app.whenReady().then(() => {
       // 3. APPLY NEW IMPACT
       if (type === 'ingreso') {
         db.prepare('UPDATE entities SET balance = balance + ? WHERE id = ?').run(amount, entityId)
-      } else if (type === 'gasto') {
+      } else if (type === 'gasto' || type === 'ahorro' || type === 'inversion') {
         db.prepare('UPDATE entities SET balance = balance - ? WHERE id = ?').run(amount, entityId)
         if (goalId) {
           db.prepare('INSERT INTO savings_contributions (goalId, amount, date) VALUES (?, ?, ?)').run(goalId, amount, date)
@@ -390,16 +392,16 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('db-add-budget', (_, data) => {
-    const { categoryId, subcategoryId, amount, isFixed, note } = data
-    const stmt = db.prepare('INSERT INTO budget_items (categoryId, subcategoryId, amount, isFixed, note) VALUES (?, ?, ?, ?, ?)')
-    const info = stmt.run(categoryId, subcategoryId, amount, isFixed, note)
+    const { categoryId, subcategoryId, amount, isFixed, note, period } = data
+    const stmt = db.prepare('INSERT INTO budget_items (categoryId, subcategoryId, amount, isFixed, note, period) VALUES (?, ?, ?, ?, ?, ?)')
+    const info = stmt.run(categoryId, subcategoryId, amount, isFixed, note, period || 'monthly')
     return info.lastInsertRowid
   })
 
   ipcMain.handle('db-edit-budget', (_, data) => {
-    const { id, categoryId, subcategoryId, amount, isFixed, note } = data
-    const stmt = db.prepare('UPDATE budget_items SET categoryId = ?, subcategoryId = ?, amount = ?, isFixed = ?, note = ? WHERE id = ?')
-    stmt.run(categoryId, subcategoryId, amount, isFixed, note, id)
+    const { id, categoryId, subcategoryId, amount, isFixed, note, period } = data
+    const stmt = db.prepare('UPDATE budget_items SET categoryId = ?, subcategoryId = ?, amount = ?, isFixed = ?, note = ?, period = ? WHERE id = ?')
+    stmt.run(categoryId, subcategoryId, amount, isFixed, note, period || 'monthly', id)
     return true
   })
 
@@ -413,15 +415,74 @@ app.whenReady().then(() => {
     return db.prepare('SELECT * FROM income_forecasts').all()
   })
 
-  ipcMain.handle('db-add-income-forecast', (_, { name, amount }) => {
-    const stmt = db.prepare('INSERT INTO income_forecasts (name, amount) VALUES (?, ?)')
-    const info = stmt.run(name, amount)
+  ipcMain.handle('db-add-income-forecast', (_, { name, amount, period }) => {
+    const stmt = db.prepare('INSERT INTO income_forecasts (name, amount, period) VALUES (?, ?, ?)')
+    const info = stmt.run(name, amount, period || 'monthly')
     return info.lastInsertRowid
   })
 
   ipcMain.handle('db-delete-income-forecast', (_, id) => {
     db.prepare('DELETE FROM income_forecasts WHERE id = ?').run(id)
     return true
+  })
+
+  ipcMain.handle('db-reset-all', () => {
+    db.transaction(() => {
+      db.prepare('DELETE FROM transactions').run()
+      db.prepare('DELETE FROM entities').run()
+      db.prepare('DELETE FROM savings_contributions').run()
+      db.prepare('DELETE FROM savings_goals').run()
+      db.prepare('DELETE FROM recurring_transactions').run()
+      db.prepare('DELETE FROM budget_items').run()
+      db.prepare('DELETE FROM income_forecasts').run()
+      // We keep categories and subcategories as they are the foundation
+    })()
+    return true
+  })
+
+  ipcMain.handle('db-export', async () => {
+    const isDev = !app.isPackaged
+    const dbPath = isDev 
+      ? join(process.cwd(), 'finanzas.db')
+      : join(app.getPath('userData'), 'finanzas.db')
+
+    const { filePath } = await dialog.showSaveDialog({
+      title: 'Exportar Copia de Seguridad',
+      defaultPath: join(app.getPath('downloads'), `bitacora_backup_${new Date().toISOString().split('T')[0]}.db`),
+      filters: [{ name: 'SQLite Database', extensions: ['db'] }]
+    })
+
+    if (filePath) {
+      fs.copyFileSync(dbPath, filePath)
+      return true
+    }
+    return false
+  })
+
+  ipcMain.handle('db-import', async () => {
+    const { filePaths } = await dialog.showOpenDialog({
+      title: 'Importar Copia de Seguridad',
+      filters: [{ name: 'SQLite Database', extensions: ['db'] }],
+      properties: ['openFile']
+    })
+
+    if (filePaths && filePaths.length > 0) {
+      const isDev = !app.isPackaged
+      const dbPath = isDev 
+        ? join(process.cwd(), 'finanzas.db')
+        : join(app.getPath('userData'), 'finanzas.db')
+
+      try {
+        fs.copyFileSync(filePaths[0], dbPath)
+        app.relaunch()
+        app.exit(0)
+        return true
+      } catch (e) {
+        console.error('Error importing DB:', e)
+        return false
+      }
+    }
+    return false
   })
 
   // Startup processing
@@ -487,7 +548,7 @@ function processRecurringTransactions(db) {
         }
 
         // 3. Update Goal
-        if (r.goalId && txnType === 'gasto') {
+        if (r.goalId && (txnType === 'gasto' || txnType === 'ahorro' || txnType === 'inversion')) {
           db.prepare('INSERT INTO savings_contributions (goalId, amount, date) VALUES (?, ?, ?)').run(r.goalId, r.amount, execDate)
           db.prepare('UPDATE savings_goals SET currentAmount = currentAmount + ? WHERE id = ?').run(r.amount, r.goalId)
         }

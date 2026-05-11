@@ -155,8 +155,18 @@ export function DataProvider({ children }) {
     deleteIncomeForecast: async (id) => {
       await window.api.deleteIncomeForecast(id)
       await refreshData()
+    },
+    resetAllData: async () => {
+      await window.api.resetAllData()
+      await refreshData()
+    },
+    exportDatabase: async () => {
+      return await window.api.exportDatabase()
+    },
+    importDatabase: async () => {
+      return await window.api.importDatabase()
     }
-  }
+}
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>
 }

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useData } from '../context/DataContext'
-import { Plus, Trash2, Building2, Tag, Layers, Globe, ExternalLink } from 'lucide-react'
+import { Plus, Trash2, Building2, Tag, Layers, Globe, ExternalLink, AlertTriangle, Download, Upload, ShieldCheck } from 'lucide-react'
 import { getLogoUrl, getDomain } from '../utils/formatters'
 import { clsx } from 'clsx'
 
@@ -9,7 +9,8 @@ export default function ConfigView() {
     entities, categories, 
     addEntity, deleteEntity,
     addCategory, deleteCategory,
-    addSubcategory, deleteSubcategory
+    addSubcategory, deleteSubcategory,
+    resetAllData, exportDatabase, importDatabase
   } = useData()
 
   const [activeTab, setActiveTab] = useState('categories')
@@ -37,6 +38,12 @@ export default function ConfigView() {
           onClick={() => setActiveTab('entities')}
         >
           Entidades Bancarias
+        </button>
+        <button 
+          className={clsx('segment-item', activeTab === 'advanced' && 'active')} 
+          onClick={() => setActiveTab('advanced')}
+        >
+          Avanzado
         </button>
       </div>
 
@@ -192,6 +199,84 @@ export default function ConfigView() {
                     </button>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'advanced' && (
+            <div style={{ animation: 'fadeUp 0.3s ease' }}>
+              <div style={{ maxWidth: 600, margin: '0 auto', textAlign: 'center', padding: '40px 0' }}>
+                <div style={{ 
+                  width: 64, 
+                  height: 64, 
+                  borderRadius: 20, 
+                  background: 'rgba(255, 60, 60, 0.1)', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  margin: '0 auto 24px',
+                  color: 'var(--danger)'
+                }}>
+                  <AlertTriangle size={32} />
+                </div>
+                
+                <h2 style={{ marginBottom: 16 }}>Copias de Seguridad y Datos</h2>
+                <p style={{ color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: 32 }}>
+                  Gestiona la integridad de tus datos exportando copias de seguridad o restaurando una anterior.
+                </p>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 40 }}>
+                  <div className="glass-panel" style={{ padding: 24, textAlign: 'left' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, color: 'var(--accent)' }}>
+                      <Download size={20} />
+                      <h3 style={{ margin: 0, fontSize: 16 }}>Exportar Datos</h3>
+                    </div>
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20 }}>Guarda una copia completa de tu base de datos en formato .db para tenerla a buen recaudo.</p>
+                    <button className="btn" style={{ width: '100%' }} onClick={async () => {
+                      const success = await exportDatabase()
+                      if (success) alert('Copia de seguridad exportada correctamente.')
+                    }}>
+                      Exportar ahora
+                    </button>
+                  </div>
+
+                  <div className="glass-panel" style={{ padding: 24, textAlign: 'left' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, color: 'var(--accent)' }}>
+                      <Upload size={20} />
+                      <h3 style={{ margin: 0, fontSize: 16 }}>Importar Datos</h3>
+                    </div>
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20 }}>Restaura una copia de seguridad previa. <strong>Atención:</strong> La app se reiniciará automáticamente.</p>
+                    <button className="btn-secondary" style={{ width: '100%' }} onClick={async () => {
+                      if (window.confirm('⚠️ ¿Estás seguro? Se sobrescribirán todos los datos actuales con la copia seleccionada.')) {
+                        await importDatabase()
+                      }
+                    }}>
+                      Importar archivo
+                    </button>
+                  </div>
+                </div>
+
+                <div className="glass-panel" style={{ padding: 24, background: 'rgba(255, 60, 60, 0.05)', border: '1px solid rgba(255, 60, 60, 0.2)' }}>
+                  <h3 style={{ marginTop: 0, fontSize: 16, color: 'var(--danger)' }}>Resetear Aplicación</h3>
+                  <p style={{ fontSize: 13, marginBottom: 20 }}>Esta acción es irreversible. Asegúrate de tener una copia de tus datos si los necesitas.</p>
+                  
+                  <button 
+                    className="btn" 
+                    style={{ background: 'var(--danger)', borderColor: 'var(--danger)', margin: '0 auto' }}
+                    onClick={async () => {
+                      if (window.confirm('⚠️ ¿Estás COMPLETAMENTE seguro de que quieres borrar todos tus datos?')) {
+                        const confirmation = window.prompt('Escribe "ELIMINAR" para confirmar la operación:')
+                        if (confirmation === 'ELIMINAR') {
+                          await resetAllData()
+                          alert('Todos los datos han sido eliminados correctamente.')
+                          setActiveTab('categories')
+                        }
+                      }
+                    }}
+                  >
+                    <Trash2 size={16} /> Borrar todos los datos
+                  </button>
+                </div>
               </div>
             </div>
           )}

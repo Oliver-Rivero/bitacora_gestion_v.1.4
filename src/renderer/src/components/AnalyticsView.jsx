@@ -9,11 +9,13 @@ import { clsx } from 'clsx'
 
 const COLORS = ['#7E91B1', '#9CAF9C', '#D18B8B', '#A29BBD', '#A09D9A', '#BFA89A', '#D9CD96', '#9BADC4', '#84a59d', '#f28482']
 
-const CustomTooltip = ({ active, payload, label }) => {
+const CustomTooltip = ({ active, payload, label, viewMode }) => {
   if (active && payload && payload.length) {
     return (
       <div style={{ background: 'rgba(255, 255, 255, 0.9)', padding: '12px', border: '1px solid var(--border)', borderRadius: 12, boxShadow: 'var(--glass-shadow)', fontSize: 13 }}>
-        <div style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: 8, borderBottom: '1px solid var(--border)', paddingBottom: 4 }}>Día {label}</div>
+        <div style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: 8, borderBottom: '1px solid var(--border)', paddingBottom: 4 }}>
+          {viewMode === 'month' ? `Día ${label}` : label}
+        </div>
         {payload.map((entry, index) => (
           <div key={`item-${index}`} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: entry.color }} />
@@ -34,6 +36,7 @@ export default function AnalyticsView() {
   const now = new Date()
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth())
   const [selectedYear, setSelectedYear] = useState(now.getFullYear())
+  const [viewMode, setViewMode] = useState('month') // 'month', 'ytd', 'year'
 
   const [hoveredExpenseCat, setHoveredExpenseCat] = useState(null)
   const [hoveredIncomeCat, setHoveredIncomeCat] = useState(null)
@@ -52,14 +55,20 @@ export default function AnalyticsView() {
     setSelectedYear(newYear)
   }
 
+  const changeYear = (delta) => {
+    setSelectedYear(selectedYear + delta)
+  }
+
   const analysisData = useMemo(() => {
     let totalIncome = 0
     let totalExpenses = 0
     let totalSavings = 0
 
-    const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate()
-    const dailyData = Array.from({ length: daysInMonth }, (_, i) => ({
-      day: i + 1,
+    const isAnnual = viewMode === 'ytd' || viewMode === 'year'
+    const dataPointsCount = isAnnual ? 12 : new Date(selectedYear, selectedMonth + 1, 0).getDate()
+    
+    const timeData = Array.from({ length: dataPointsCount }, (_, i) => ({
+      label: isAnnual ? MONTHS[i] : i + 1,
       ingresos: 0,
       gastos: 0
     }))
@@ -68,22 +77,32 @@ export default function AnalyticsView() {
     const incomeCategories = {}
 
     transactions.forEach(t => {
-      // Excluir ajustes
       if (t.categoryName === 'Ajuste' || t.subcategoryName?.includes('Ajuste')) return
 
-      // Parseo robusto de fecha (ignora zona horaria)
       const [y, m, d] = t.date.split('-').map(Number)
       const tDate = new Date(y, m - 1, d)
       
-      if (tDate.getMonth() !== selectedMonth || tDate.getFullYear() !== selectedYear) return
+      // Filter by period
+      if (viewMode === 'month') {
+        if (tDate.getMonth() !== selectedMonth || tDate.getFullYear() !== selectedYear) return
+      } else if (viewMode === 'ytd') {
+        const now = new Date()
+        const isCurrentYear = tDate.getFullYear() === now.getFullYear()
+        const isPastOrPresentMonth = tDate.getMonth() <= now.getMonth()
+        if (!isCurrentYear || !isPastOrPresentMonth) return
+        // Also ensure we don't include future days in the current month
+        if (tDate.getMonth() === now.getMonth() && tDate.getDate() > now.getDate()) return
+      } else if (viewMode === 'year') {
+        if (tDate.getFullYear() !== selectedYear) return
+      }
 
-      const day = tDate.getDate()
-      const catName = t.categoryName || 'Otros'
-      const subName = t.subcategoryName || 'Otros'
+      const index = isAnnual ? tDate.getMonth() : tDate.getDate() - 1
+      const catName = t.type === 'ahorro' ? 'Ahorro' : t.type === 'inversion' ? 'Inversión' : (t.categoryName || 'Otros')
+      const subName = t.type === 'ahorro' ? 'General' : t.type === 'inversion' ? 'General' : (t.subcategoryName || 'Otros')
 
       if (t.type === 'ingreso') {
         totalIncome += t.amount
-        dailyData[day - 1].ingresos += t.amount
+        timeData[index].ingresos += t.amount
 
         if (!incomeCategories[catName]) {
           incomeCategories[catName] = { name: catName, value: 0, subcategories: {} }
@@ -93,11 +112,11 @@ export default function AnalyticsView() {
           incomeCategories[catName].subcategories[subName] = { name: subName, value: 0 }
         }
         incomeCategories[catName].subcategories[subName].value += t.amount
-      } else if (t.type === 'gasto') {
+      } else if (t.type === 'gasto' || t.type === 'ahorro' || t.type === 'inversion') {
         totalExpenses += t.amount
-        dailyData[day - 1].gastos += t.amount
+        timeData[index].gastos += t.amount
 
-        if (subName === 'Ahorro') totalSavings += t.amount
+        if (t.type === 'ahorro' || subName === 'Ahorro') totalSavings += t.amount
 
         if (!expenseCategories[catName]) {
           expenseCategories[catName] = { name: catName, value: 0, subcategories: {} }
@@ -110,10 +129,10 @@ export default function AnalyticsView() {
       }
     })
 
-    // Calculate accumulative daily data for lines
+    // Calculate accumulative data
     let accIngresos = 0
     let accGastos = 0
-    const accumulativeDailyData = dailyData.map(d => {
+    const accumulativeData = timeData.map(d => {
       accIngresos += d.ingresos
       accGastos += d.gastos
       return {
@@ -144,12 +163,11 @@ export default function AnalyticsView() {
       totalExpenses,
       totalSavings,
       savingsRate,
-      accumulativeDailyData,
-      dailyData, // non-accumulative if we want bars instead
+      accumulativeData,
       expensesDistribution,
       incomeDistribution
     }
-  }, [transactions, selectedMonth, selectedYear])
+  }, [transactions, selectedMonth, selectedYear, viewMode])
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>Cargando analíticas...</div>
 
@@ -234,18 +252,25 @@ export default function AnalyticsView() {
 
   return (
     <div style={{ paddingBottom: 40 }}>
-      {/* Header & Date Selector */}
+      {/* Header & Mode Selector */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h1>Analíticas Detalladas</h1>
+        <div>
+          <h1>Analíticas</h1>
+          <div className="segmented-control" style={{ margin: '12px 0 0 0', padding: 2 }}>
+            <button className={clsx('segment-item', viewMode === 'month' && 'active')} onClick={() => setViewMode('month')}>Mes</button>
+            <button className={clsx('segment-item', viewMode === 'ytd' && 'active')} onClick={() => setViewMode('ytd')}>Año Actual (YTD)</button>
+            <button className={clsx('segment-item', viewMode === 'year' && 'active')} onClick={() => setViewMode('year')}>Año Completo</button>
+          </div>
+        </div>
         
         <div className="glass-panel" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '8px 16px', borderRadius: 20 }}>
-          <button className="btn-icon" onClick={() => changeMonth(-1)}>
+          <button className="btn-icon" onClick={() => viewMode === 'month' ? changeMonth(-1) : changeYear(-1)}>
             <ChevronLeft size={18} />
           </button>
           <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-main)', minWidth: 120, textAlign: 'center' }}>
-            {MONTHS[selectedMonth]} {selectedYear}
+            {viewMode === 'month' ? `${MONTHS[selectedMonth]} ${selectedYear}` : selectedYear}
           </div>
-          <button className="btn-icon" onClick={() => changeMonth(1)}>
+          <button className="btn-icon" onClick={() => viewMode === 'month' ? changeMonth(1) : changeYear(1)}>
             <ChevronRight size={18} />
           </button>
         </div>
@@ -290,17 +315,17 @@ export default function AnalyticsView() {
       {/* Evolution Line Chart */}
       <div className="glass-panel" style={{ padding: '24px', height: 400, marginBottom: 24 }}>
         <h3 style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          Evolución Diaria (Acumulada)
+          {viewMode === 'month' ? 'Evolución Diaria (Acumulada)' : 'Evolución Mensual (Acumulada)'}
         </h3>
-        <ResponsiveContainer width="100%" height="90%" key={`chart-${selectedMonth}-${selectedYear}-${transactions.length}`}>
-          <LineChart data={analysisData.accumulativeDailyData} margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
+        <ResponsiveContainer width="100%" height="90%" key={`chart-${viewMode}-${selectedMonth}-${selectedYear}-${transactions.length}`}>
+          <LineChart data={analysisData.accumulativeData} margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-            <XAxis dataKey="day" stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(val) => `Día ${val}`} />
+            <XAxis dataKey="label" stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} />
             <YAxis stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} />
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={<CustomTooltip viewMode={viewMode} />} />
             <Legend verticalAlign="top" align="right" iconType="circle" />
-            <Line type="monotone" dataKey="accIngresos" name="Ingresos Totales" stroke="var(--success)" strokeWidth={3} dot={false} activeDot={{ r: 6 }} />
-            <Line type="monotone" dataKey="accGastos" name="Gastos Totales" stroke="var(--danger)" strokeWidth={3} dot={false} activeDot={{ r: 6 }} />
+            <Line type="monotone" dataKey="accIngresos" name="Ingresos Totales" stroke="var(--success)" strokeWidth={3} dot={viewMode !== 'month'} activeDot={{ r: 6 }} />
+            <Line type="monotone" dataKey="accGastos" name="Gastos Totales" stroke="var(--danger)" strokeWidth={3} dot={viewMode !== 'month'} activeDot={{ r: 6 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>

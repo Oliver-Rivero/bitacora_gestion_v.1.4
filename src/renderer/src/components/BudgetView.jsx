@@ -33,17 +33,26 @@ export default function BudgetView() {
 
   // --- Calculations ---
   const totalIncomeForecast = useMemo(() => 
-    incomeForecasts.reduce((acc, curr) => acc + curr.amount, 0),
+    incomeForecasts.reduce((acc, curr) => {
+      const monthlyAmount = curr.period === 'yearly' ? curr.amount / 12 : curr.amount
+      return acc + monthlyAmount
+    }, 0),
     [incomeForecasts]
   )
 
   const totalBudgeted = useMemo(() => 
-    budgetItems.reduce((acc, curr) => acc + curr.amount, 0),
+    budgetItems.reduce((acc, curr) => {
+      const monthlyAmount = curr.period === 'yearly' ? curr.amount / 12 : curr.amount
+      return acc + monthlyAmount
+    }, 0),
     [budgetItems]
   )
 
   const fixedExpenses = useMemo(() => 
-    budgetItems.filter(item => item.isFixed === 1).reduce((acc, curr) => acc + curr.amount, 0),
+    budgetItems.filter(item => item.isFixed === 1).reduce((acc, curr) => {
+      const monthlyAmount = curr.period === 'yearly' ? curr.amount / 12 : curr.amount
+      return acc + monthlyAmount
+    }, 0),
     [budgetItems]
   )
 
@@ -61,7 +70,7 @@ export default function BudgetView() {
       const [y, m, d] = t.date.split('-').map(Number)
       const tDate = new Date(y, m - 1, d)
       
-      return tDate.getMonth() === now.getMonth() && tDate.getFullYear() === now.getFullYear() && t.type === 'gasto'
+      return tDate.getMonth() === now.getMonth() && tDate.getFullYear() === now.getFullYear() && (t.type === 'gasto' || t.type === 'ahorro' || t.type === 'inversion')
     })
 
     const result = {}
@@ -99,13 +108,15 @@ export default function BudgetView() {
       else if (catName === 'Vehículo') groupName = 'Vehículo'
       else if (catName === 'Personal' || catName === 'Ocio y entretenimiento') groupName = 'Personal'
 
+      const monthlyAmount = item.period === 'yearly' ? item.amount / 12 : item.amount
+
       if (!virtualMap[groupName]) {
         virtualMap[groupName] = { name: groupName, value: 0, subcategories: [] }
       }
-      virtualMap[groupName].value += item.amount
+      virtualMap[groupName].value += monthlyAmount
       virtualMap[groupName].subcategories.push({
         name: subName || 'General',
-        value: item.amount
+        value: monthlyAmount
       })
     })
 
@@ -139,8 +150,13 @@ export default function BudgetView() {
     const wants = (distributionData.find(d => d.name === 'Personal')?.value || 0) + 
                   (distributionData.find(d => d.name === 'Otros')?.value || 0);
     const savings = (distributionData.find(d => d.name === 'Ahorro')?.value || 0) + 
-                    (distributionData.find(d => d.name === 'Inversión')?.value || 0) + 
-                    (distributionData.find(d => d.name === 'Margen Libre')?.value || 0);
+                  (distributionData.find(d => d.name === 'Inversión')?.value || 0) + 
+                  (distributionData.find(d => d.name === 'Margen Libre')?.value || 0) +
+                  transactions.filter(t => {
+                    const [y, m] = t.date.split('-').map(Number)
+                    const now = new Date()
+                    return y === now.getFullYear() && m === (now.getMonth() + 1) && (t.type === 'ahorro' || t.type === 'inversion')
+                  }).reduce((acc, t) => acc + t.amount, 0);
 
     return [
       { label: 'Necesidades', value: needs, target: 50, color: '#7B8FA1', current: (needs / totalIncomeForecast) * 100 },
@@ -269,22 +285,31 @@ export default function BudgetView() {
                           </td>
                         </tr>
                         {!isCollapsed && items.map(item => {
+                          const monthlyBudget = item.period === 'yearly' ? item.amount / 12 : item.amount
                           const realSpent = currentMonthSpending[item.subcategoryId || `cat-${item.categoryId}`] || 0
-                          const percent = (realSpent / item.amount) * 100
+                          const percent = (realSpent / monthlyBudget) * 100
                           const isOver = percent > 100
 
                           return (
                             <tr key={item.id} className="animate-fadeIn" style={{ animationDuration: '0.3s' }}>
                               <td style={{ paddingLeft: 32 }}>
                                 <div style={{ fontWeight: 600 }}>{item.subcategoryName || 'General'}</div>
-                                {item.note && <div style={{ fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>"{item.note}"</div>}
+                                <div style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  {item.period === 'yearly' ? 'Anual' : 'Mensual'}
+                                  {item.note && <span>• "{item.note}"</span>}
+                                </div>
                               </td>
                               <td>
                                 <span className={clsx('badge', item.isFixed ? 'badge-danger' : 'badge-primary')} style={{ fontSize: 9 }}>
                                   {item.isFixed ? 'FIJO' : 'VARIABLE'}
                                 </span>
                               </td>
-                              <td style={{ textAlign: 'right', fontWeight: 700 }}>{formatCurrency(item.amount)}</td>
+                              <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                                <div>{formatCurrency(item.period === 'yearly' ? item.amount / 12 : item.amount)}</div>
+                                {item.period === 'yearly' && (
+                                  <div style={{ fontSize: 9, opacity: 0.5, fontWeight: 400 }}>{formatCurrency(item.amount)}/año</div>
+                                )}
+                              </td>
                               <td style={{ textAlign: 'right' }}>{formatCurrency(realSpent)}</td>
                               <td>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
@@ -341,9 +366,17 @@ export default function BudgetView() {
                 <div key={income.id} className="glass-panel" style={{ padding: '12px 16px', background: 'rgba(0,0,0,0.02)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <div style={{ fontWeight: 600 }}>{income.name}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{income.period === 'yearly' ? 'Anual' : 'Mensual'}</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ fontWeight: 800, color: 'var(--success)' }}>{formatCurrency(income.amount)}</div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontWeight: 800, color: 'var(--success)' }}>
+                        {formatCurrency(income.period === 'yearly' ? income.amount / 12 : income.amount)}
+                      </div>
+                      {income.period === 'yearly' && (
+                        <div style={{ fontSize: 9, opacity: 0.5 }}>{formatCurrency(income.amount)}/año</div>
+                      )}
+                    </div>
                     <button className="btn-icon text-danger" onClick={() => deleteIncomeForecast(income.id)}>
                       <Trash2 size={12} />
                     </button>
@@ -577,6 +610,7 @@ function StatCard({ title, value, icon, color }) {
 function IncomeModal({ onClose, onSave }) {
   const [name, setName] = useState('')
   const [amount, setAmount] = useState('')
+  const [period, setPeriod] = useState('monthly')
 
   return (
     <div className="modal-overlay">
@@ -588,13 +622,29 @@ function IncomeModal({ onClose, onSave }) {
             <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Ej: Nómina" />
           </div>
           <div>
-            <label className="label">IMPORTE MENSUAL (€)</label>
-            <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" />
+            <label className="label">IMPORTE (€)</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input 
+                type="number" 
+                value={amount} 
+                onChange={e => setAmount(e.target.value)} 
+                placeholder="0.00" 
+                style={{ flex: 1 }}
+              />
+              <select 
+                value={period} 
+                onChange={e => setPeriod(e.target.value)}
+                style={{ width: 120 }}
+              >
+                <option value="monthly">Mensual</option>
+                <option value="yearly">Anual</option>
+              </select>
+            </div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 12 }}>
           <button className="btn-secondary" style={{ flex: 1 }} onClick={onClose}>Cancelar</button>
-          <button className="btn" style={{ flex: 1, justifyContent: 'center' }} onClick={() => onSave({ name, amount: Number(amount) })} disabled={!name || !amount}>Guardar</button>
+          <button className="btn" style={{ flex: 1, justifyContent: 'center' }} onClick={() => onSave({ name, amount: Number(amount), period })} disabled={!name || !amount}>Guardar</button>
         </div>
       </div>
     </div>
@@ -605,6 +655,7 @@ function BudgetModal({ item, categories, onClose, onSave }) {
   const [categoryId, setCategoryId] = useState(item?.categoryId || '')
   const [subcategoryId, setSubcategoryId] = useState(item?.subcategoryId || '')
   const [amount, setAmount] = useState(item?.amount || '')
+  const [period, setPeriod] = useState(item?.period || 'monthly')
   const [isFixed, setIsFixed] = useState(item?.isFixed === 1)
   const [note, setNote] = useState(item?.note || '')
 
@@ -634,8 +685,24 @@ function BudgetModal({ item, categories, onClose, onSave }) {
             </select>
           </div>
           <div>
-            <label className="label">IMPORTE MENSUAL (€)</label>
-            <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" />
+            <label className="label">IMPORTE (€)</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input 
+                type="number" 
+                value={amount} 
+                onChange={e => setAmount(e.target.value)} 
+                placeholder="0.00" 
+                style={{ flex: 1 }}
+              />
+              <select 
+                value={period} 
+                onChange={e => setPeriod(e.target.value)}
+                style={{ width: 120 }}
+              >
+                <option value="monthly">Mensual</option>
+                <option value="yearly">Anual</option>
+              </select>
+            </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
             <input 
@@ -658,6 +725,7 @@ function BudgetModal({ item, categories, onClose, onSave }) {
             categoryId: Number(categoryId), 
             subcategoryId: subcategoryId ? Number(subcategoryId) : null, 
             amount: Number(amount), 
+            period,
             isFixed: isFixed ? 1 : 0,
             note: note
           })} disabled={!categoryId || !amount}>Guardar</button>
