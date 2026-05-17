@@ -49,6 +49,8 @@ export default function LedgerView() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [activeTab, setActiveTab] = useState('table') // 'table' | 'import' | 'reports'
+  const [editingRowId, setEditingRowId] = useState(null)
+  const [inlineFormData, setInlineFormData] = useState(null)
 
   // Respond to quick add request
   React.useEffect(() => {
@@ -81,6 +83,43 @@ export default function LedgerView() {
   const resetForm = () => {
     setFormData(initialFormState)
     setEditingId(null)
+  }
+
+  const startInlineEdit = (t) => {
+    setEditingRowId(t.id)
+    setInlineFormData({
+      date: t.date,
+      type: t.type,
+      amount: t.amount.toString(),
+      categoryId: t.categoryId?.toString() || '',
+      subcategoryId: t.subcategoryId?.toString() || '',
+      entityId: t.entityId.toString(),
+      toEntityId: t.toEntityId?.toString() || '',
+      note: t.note || ''
+    })
+  }
+
+  const cancelInlineEdit = () => {
+    setEditingRowId(null)
+    setInlineFormData(null)
+  }
+
+  const saveInlineEdit = async () => {
+    if (!inlineFormData) return
+    const txn = {
+      date: inlineFormData.date,
+      type: inlineFormData.type,
+      amount: parseFloat(inlineFormData.amount) || 0,
+      categoryId: inlineFormData.categoryId ? parseInt(inlineFormData.categoryId) : null,
+      subcategoryId: inlineFormData.subcategoryId ? parseInt(inlineFormData.subcategoryId) : null,
+      entityId: parseInt(inlineFormData.entityId),
+      toEntityId: inlineFormData.toEntityId ? parseInt(inlineFormData.toEntityId) : null,
+      note: inlineFormData.note || ''
+    }
+    
+    await editTransaction({ ...txn, id: editingRowId })
+    setEditingRowId(null)
+    setInlineFormData(null)
   }
 
   const openEditModal = (t) => {
@@ -383,72 +422,222 @@ export default function LedgerView() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredTransactions.map(t => (
-                    <tr key={t.id}>
-                      <td>{formatDate(t.date)}</td>
-                      <td>
-                        <span style={{ 
-                          padding: '2px 8px', 
-                          borderRadius: 12, 
-                          fontSize: 10, 
-                          fontWeight: 600,
-                          textTransform: 'uppercase',
-                          background: 
-                            t.type === 'ingreso' ? 'rgba(108,165,123,0.1)' : 
-                            t.type === 'gasto' ? 'rgba(192,104,104,0.1)' : 
-                            t.type === 'ahorro' ? 'rgba(126,145,177,0.15)' :
-                            t.type === 'inversion' ? 'rgba(162,155,189,0.15)' :
-                            'rgba(126,145,177,0.1)',
-                          color: 
-                            t.type === 'ingreso' ? 'var(--success)' : 
-                            t.type === 'gasto' ? 'var(--danger)' : 
-                            t.type === 'ahorro' ? 'var(--accent)' :
-                            t.type === 'inversion' ? '#827A9E' :
-                            'var(--accent)'
-                        }}>
-                          {t.type}
-                        </span>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div style={{ 
-                            width: 28, 
-                            height: 28, 
-                            borderRadius: '50%', 
-                            background: `${getCategoryColor(t.categoryName, t.type)}15`, 
-                            border: `1px solid ${getCategoryColor(t.categoryName, t.type)}30`, 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'center', 
-                            flexShrink: 0 
-                          }}>
-                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: getCategoryColor(t.categoryName, t.type) }} />
-                          </div>
-                          <div>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>{t.categoryName || '-'}</div>
-                            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t.subcategoryName || ''}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td>{t.entityName} {t.toEntityName && `→ ${t.toEntityName}`}</td>
-                      <td style={{ fontWeight: 600, color: t.type === 'ingreso' ? 'var(--success)' : (t.type === 'gasto' || t.type === 'ahorro' || t.type === 'inversion') ? 'var(--danger)' : 'inherit' }}>
-                        {(t.type === 'gasto' || t.type === 'ahorro' || t.type === 'inversion') ? '-' : t.type === 'ingreso' ? '+' : ''} {formatCurrency(t.amount)}
-                      </td>
-                      <td style={{ fontSize: 12, color: 'var(--text-muted)', maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.note}</td>
-                      <td style={{ textAlign: 'right' }}>
-                        <button className="btn-secondary" style={{ padding: 6, marginRight: 8 }} onClick={() => openEditModal(t)}>
-                          <Pencil size={14} />
-                        </button>
-                        <button className="btn-secondary" style={{ padding: 6 }} onClick={() => {
-                          if (confirm('¿Estás seguro de eliminar este registro?')) {
-                            deleteTransaction(t.id)
-                          }
-                        }}>
-                          <Trash2 size={14} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                   {filteredTransactions.map(t => {
+                    const isInlineEditing = editingRowId === t.id && inlineFormData;
+                    
+                    return (
+                      <tr 
+                        key={t.id} 
+                        onDoubleClick={() => !isInlineEditing && startInlineEdit(t)}
+                        style={{ background: isInlineEditing ? 'rgba(126, 145, 177, 0.04)' : 'transparent' }}
+                      >
+                        {isInlineEditing ? (
+                          <>
+                            {/* Fecha */}
+                            <td>
+                              <input 
+                                type="date" 
+                                value={inlineFormData.date} 
+                                onChange={e => setInlineFormData({ ...inlineFormData, date: e.target.value })} 
+                                style={{ padding: '6px 8px', fontSize: 12, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-color)', color: 'var(--text-main)', width: '100%', outline: 'none' }} 
+                              />
+                            </td>
+                            
+                            {/* Tipo */}
+                            <td>
+                              <select 
+                                value={inlineFormData.type} 
+                                onChange={e => {
+                                  const newType = e.target.value;
+                                  const firstCat = categories.find(c => c.type === newType);
+                                  const catId = firstCat ? firstCat.id.toString() : '';
+                                  const subId = firstCat && firstCat.subcategories.length > 0 ? firstCat.subcategories[0].id.toString() : '';
+                                  setInlineFormData({ 
+                                    ...inlineFormData, 
+                                    type: newType, 
+                                    categoryId: catId, 
+                                    subcategoryId: subId 
+                                  });
+                                }} 
+                                style={{ padding: '6px 8px', fontSize: 12, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-color)', color: 'var(--text-main)', width: '100%', outline: 'none' }}
+                              >
+                                <option value="gasto">Gasto</option>
+                                <option value="ingreso">Ingreso</option>
+                                <option value="ahorro">Ahorro</option>
+                                <option value="inversion">Inversión</option>
+                              </select>
+                            </td>
+                            
+                            {/* Categoría */}
+                            <td>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                <select 
+                                  value={inlineFormData.categoryId} 
+                                  onChange={e => {
+                                    const newCatId = e.target.value;
+                                    const catObj = categories.find(c => c.id == newCatId);
+                                    const subId = catObj && catObj.subcategories.length > 0 ? catObj.subcategories[0].id.toString() : '';
+                                    setInlineFormData({ ...inlineFormData, categoryId: newCatId, subcategoryId: subId });
+                                  }}
+                                  style={{ padding: '6px 8px', fontSize: 12, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-color)', color: 'var(--text-main)', width: '100%', outline: 'none' }}
+                                >
+                                  <option value="">Selecciona categoría</option>
+                                  {categories.filter(c => c.type === inlineFormData.type).map(c => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                  ))}
+                                </select>
+                                
+                                {inlineFormData.categoryId && (
+                                  <select 
+                                    value={inlineFormData.subcategoryId} 
+                                    onChange={e => setInlineFormData({ ...inlineFormData, subcategoryId: e.target.value })}
+                                    style={{ padding: '4px 6px', fontSize: 11, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-color)', color: 'var(--text-main)', width: '100%', outline: 'none' }}
+                                  >
+                                    <option value="">Selecciona subcategoría</option>
+                                    {categories.find(c => c.id == inlineFormData.categoryId)?.subcategories.map(s => (
+                                      <option key={s.id} value={s.id}>{s.name}</option>
+                                    ))}
+                                  </select>
+                                )}
+                              </div>
+                            </td>
+                            
+                            {/* Entidad */}
+                            <td>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                <select 
+                                  value={inlineFormData.entityId} 
+                                  onChange={e => setInlineFormData({ ...inlineFormData, entityId: e.target.value })}
+                                  style={{ padding: '6px 8px', fontSize: 12, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-color)', color: 'var(--text-main)', width: '100%', outline: 'none' }}
+                                >
+                                  {entities.map(e => (
+                                    <option key={e.id} value={e.id}>{e.name}</option>
+                                  ))}
+                                </select>
+                                
+                                {(inlineFormData.type === 'ahorro' || inlineFormData.type === 'inversion' || inlineFormData.type === 'transferencia') && (
+                                  <select 
+                                    value={inlineFormData.toEntityId} 
+                                    onChange={e => setInlineFormData({ ...inlineFormData, toEntityId: e.target.value })}
+                                    style={{ padding: '4px 6px', fontSize: 11, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-color)', color: 'var(--text-main)', width: '100%', outline: 'none' }}
+                                  >
+                                    <option value="">Entidad Destino</option>
+                                    {entities.map(e => (
+                                      <option key={e.id} value={e.id}>{e.name}</option>
+                                    ))}
+                                  </select>
+                                )}
+                              </div>
+                            </td>
+                            
+                            {/* Importe */}
+                            <td>
+                              <input 
+                                type="number" 
+                                step="any"
+                                value={inlineFormData.amount} 
+                                onChange={e => setInlineFormData({ ...inlineFormData, amount: e.target.value })} 
+                                style={{ padding: '6px 8px', fontSize: 12, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-color)', color: 'var(--text-main)', width: 85, fontWeight: 'bold', outline: 'none' }} 
+                              />
+                            </td>
+                            
+                            {/* Nota */}
+                            <td>
+                              <input 
+                                type="text" 
+                                value={inlineFormData.note} 
+                                onChange={e => setInlineFormData({ ...inlineFormData, note: e.target.value })} 
+                                style={{ padding: '6px 8px', fontSize: 12, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-color)', color: 'var(--text-main)', width: '100%', outline: 'none' }} 
+                              />
+                            </td>
+                            
+                            {/* Acciones de Edición */}
+                            <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                              <button 
+                                className="btn" 
+                                style={{ padding: '6px 12px', background: 'var(--success)', color: 'white', borderRadius: 8, fontSize: 11, marginRight: 6, fontWeight: 700 }} 
+                                onClick={saveInlineEdit}
+                              >
+                                Guardar
+                              </button>
+                              <button 
+                                className="btn-secondary" 
+                                style={{ padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600 }} 
+                                onClick={cancelInlineEdit}
+                              >
+                                Cancelar
+                              </button>
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td>{formatDate(t.date)}</td>
+                            <td>
+                              <span style={{ 
+                                padding: '2px 8px', 
+                                borderRadius: 12, 
+                                fontSize: 10, 
+                                fontWeight: 600,
+                                textTransform: 'uppercase',
+                                background: 
+                                  t.type === 'ingreso' ? 'rgba(108,165,123,0.1)' : 
+                                  t.type === 'gasto' ? 'rgba(192,104,104,0.1)' : 
+                                  t.type === 'ahorro' ? 'rgba(126,145,177,0.15)' :
+                                  t.type === 'inversion' ? 'rgba(162,155,189,0.15)' :
+                                  'rgba(126,145,177,0.1)',
+                                color: 
+                                  t.type === 'ingreso' ? 'var(--success)' : 
+                                  t.type === 'gasto' ? 'var(--danger)' : 
+                                  t.type === 'ahorro' ? 'var(--accent)' :
+                                  t.type === 'inversion' ? '#827A9E' :
+                                  'var(--accent)'
+                              }}>
+                                {t.type}
+                              </span>
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <div style={{ 
+                                  width: 28, 
+                                  height: 28, 
+                                  borderRadius: '50%', 
+                                  background: `${getCategoryColor(t.categoryName, t.type)}15`, 
+                                  border: `1px solid ${getCategoryColor(t.categoryName, t.type)}30`, 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  justifyContent: 'center', 
+                                  flexShrink: 0 
+                                }}>
+                                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: getCategoryColor(t.categoryName, t.type) }} />
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>{t.categoryName || '-'}</div>
+                                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t.subcategoryName || ''}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td>{t.entityName} {t.toEntityName && `→ ${t.toEntityName}`}</td>
+                            <td style={{ fontWeight: 600, color: t.type === 'ingreso' ? 'var(--success)' : (t.type === 'gasto' || t.type === 'ahorro' || t.type === 'inversion') ? 'var(--danger)' : 'inherit' }}>
+                              {(t.type === 'gasto' || t.type === 'ahorro' || t.type === 'inversion') ? '-' : t.type === 'ingreso' ? '+' : ''} {formatCurrency(t.amount)}
+                            </td>
+                            <td style={{ fontSize: 12, color: 'var(--text-muted)', maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.note}</td>
+                            <td style={{ textAlign: 'right' }}>
+                              <button className="btn-secondary" style={{ padding: 6, marginRight: 8 }} onClick={() => startInlineEdit(t)}>
+                                <Pencil size={14} />
+                              </button>
+                              <button className="btn-secondary" style={{ padding: 6 }} onClick={() => {
+                                if (confirm('¿Estás seguro de eliminar este registro?')) {
+                                  deleteTransaction(t.id)
+                                }
+                              }}>
+                                <Trash2 size={14} />
+                              </button>
+                            </td>
+                          </>
+                        )}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </>
