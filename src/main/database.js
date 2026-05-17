@@ -179,12 +179,88 @@ export function setupDatabase() {
     }
   }
 
-  // Ensure 'Ajuste' category exists
-  const hasAjuste = db.prepare('SELECT id FROM categories WHERE name = ?').get('Ajuste')
-  if (!hasAjuste) {
-    const result = db.prepare('INSERT INTO categories (name, type) VALUES (?, ?)').run('Ajuste', 'gasto')
-    const catId = result.lastInsertRowid
-    db.prepare('INSERT INTO subcategories (categoryId, name) VALUES (?, ?)').run(catId, 'Ajuste de Saldo')
+  // --- MIGRATION: Promote subcategories of 'Ingresos' to main categories of type 'ingreso' ---
+  try {
+    const oldIngresoCat = db.prepare('SELECT id FROM categories WHERE name = ? AND type = ?').get('Ingresos', 'ingreso')
+    if (oldIngresoCat) {
+      const subs = db.prepare('SELECT * FROM subcategories WHERE categoryId = ?').all(oldIngresoCat.id)
+      
+      let otrosCat = db.prepare('SELECT id FROM categories WHERE name = ? AND type = ?').get('Otros', 'ingreso')
+      let otrosCatId
+      if (!otrosCat) {
+        const res = db.prepare('INSERT INTO categories (name, type) VALUES (?, ?)').run('Otros', 'ingreso')
+        otrosCatId = res.lastInsertRowid
+      } else {
+        otrosCatId = otrosCat.id
+      }
+
+      for (const s of subs) {
+        let newCat = db.prepare('SELECT id FROM categories WHERE name = ? AND type = ?').get(s.name, 'ingreso')
+        let newCatId
+        if (!newCat) {
+          const res = db.prepare('INSERT INTO categories (name, type) VALUES (?, ?)').run(s.name, 'ingreso')
+          newCatId = res.lastInsertRowid
+        } else {
+          newCatId = newCat.id
+        }
+
+        // Migrate transactions and configs
+        db.prepare('UPDATE transactions SET categoryId = ?, subcategoryId = NULL WHERE categoryId = ? AND subcategoryId = ?').run(newCatId, oldIngresoCat.id, s.id)
+        db.prepare('UPDATE recurring_transactions SET categoryId = ?, subcategoryId = NULL WHERE categoryId = ? AND subcategoryId = ?').run(newCatId, oldIngresoCat.id, s.id)
+        db.prepare('UPDATE budget_items SET categoryId = ?, subcategoryId = NULL WHERE categoryId = ? AND subcategoryId = ?').run(newCatId, oldIngresoCat.id, s.id)
+      }
+
+      // Update remaining ones without subcategory or with unknown subcategories
+      db.prepare('UPDATE transactions SET categoryId = ?, subcategoryId = NULL WHERE categoryId = ?').run(otrosCatId, oldIngresoCat.id)
+      db.prepare('UPDATE recurring_transactions SET categoryId = ?, subcategoryId = NULL WHERE categoryId = ?').run(otrosCatId, oldIngresoCat.id)
+      db.prepare('UPDATE budget_items SET categoryId = ?, subcategoryId = NULL WHERE categoryId = ?').run(otrosCatId, oldIngresoCat.id)
+
+      // Delete old dummy category
+      db.prepare('DELETE FROM categories WHERE id = ?').run(oldIngresoCat.id)
+    }
+  } catch (e) {
+    console.error("Migration 'Ingresos' promotion error:", e)
+  }
+
+  // --- MIGRATION: Seed default categories for Ahorro and Inversión if empty ---
+  try {
+    const ahorroCount = db.prepare('SELECT COUNT(*) as count FROM categories WHERE type = ?').get('ahorro').count
+    if (ahorroCount === 0) {
+      const catsAhorro = [
+        { name: 'Hucha', subs: ['Vacaciones', 'Fondo de Emergencia', 'Vehículo', 'Tecnología', 'General'] },
+        { name: 'Plan de Ahorro', subs: ['Depósito', 'Cuenta Remunerada'] }
+      ]
+      for (const c of catsAhorro) {
+        const res = db.prepare('INSERT INTO categories (name, type) VALUES (?, ?)').run(c.name, 'ahorro')
+        const catId = res.lastInsertRowid
+        for (const s of c.subs) {
+          db.prepare('INSERT INTO subcategories (categoryId, name) VALUES (?, ?)').run(catId, s)
+        }
+      }
+    }
+  } catch (e) {
+    console.error("Migration 'ahorro' seed error:", e)
+  }
+
+  try {
+    const inversionCount = db.prepare('SELECT COUNT(*) as count FROM categories WHERE type = ?').get('inversion').count
+    if (inversionCount === 0) {
+      const catsInversion = [
+        { name: 'Bolsa', subs: ['Acciones', 'ETF', 'Fondos Indexados'] },
+        { name: 'Criptomonedas', subs: ['Bitcoin', 'Ethereum', 'Altcoins'] },
+        { name: 'Inmobiliario', subs: ['Alquiler', 'Crowdfunding'] },
+        { name: 'Otros', subs: ['Planes de Pensiones', 'Oro / Metales'] }
+      ]
+      for (const c of catsInversion) {
+        const res = db.prepare('INSERT INTO categories (name, type) VALUES (?, ?)').run(c.name, 'inversion')
+        const catId = res.lastInsertRowid
+        for (const s of c.subs) {
+          db.prepare('INSERT INTO subcategories (categoryId, name) VALUES (?, ?)').run(catId, s)
+        }
+      }
+    }
+  } catch (e) {
+    console.error("Migration 'inversion' seed error:", e)
   }
 
   return db

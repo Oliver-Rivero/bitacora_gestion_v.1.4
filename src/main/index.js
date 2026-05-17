@@ -106,15 +106,15 @@ app.whenReady().then(() => {
     return true
   })
 
-  // Transactions
   ipcMain.handle('db-get-transactions', () => {
     return db.prepare(`
-      SELECT t.*, c.name as categoryName, s.name as subcategoryName, e.name as entityName, e2.name as toEntityName
+      SELECT t.*, c.name as categoryName, s.name as subcategoryName, e.name as entityName, e2.name as toEntityName, sg.name as goalName
       FROM transactions t
       LEFT JOIN categories c ON t.categoryId = c.id
       LEFT JOIN subcategories s ON t.subcategoryId = s.id
       LEFT JOIN entities e ON t.entityId = e.id
       LEFT JOIN entities e2 ON t.toEntityId = e2.id
+      LEFT JOIN savings_goals sg ON t.goalId = sg.id
       ORDER BY date DESC, id DESC
     `).all()
   })

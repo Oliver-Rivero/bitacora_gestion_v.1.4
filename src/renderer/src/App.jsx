@@ -172,25 +172,11 @@ function AppContent() {
         
         <div style={{ marginTop: 'auto', WebkitAppRegion: 'no-drag', display: 'flex', flexDirection: 'column', gap: 4 }}>
           <div 
-            className="nav-item" 
+            className="edit-sidebar-btn" 
             onClick={() => setIsEditingSidebar(!isEditingSidebar)}
-            style={{ 
-              fontSize: 12, 
-              fontWeight: 600, 
-              color: 'var(--accent)', 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 10,
-              padding: '10px 16px',
-              cursor: 'pointer',
-              borderRadius: 10,
-              margin: '0 8px 4px 8px',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.03)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            style={{ margin: '0 8px 4px 8px' }}
           >
-            {isEditingSidebar ? <Check size={16} /> : <Settings2 size={16} />}
+            {isEditingSidebar ? <Check size={14} /> : <Settings2 size={14} />}
             <span>{isEditingSidebar ? 'Finalizar edición' : 'Personalizar menú'}</span>
           </div>
 
@@ -199,7 +185,7 @@ function AppContent() {
             {theme === 'dark' ? 'Modo Claro' : 'Modo Oscuro'}
           </div>
           <div style={{ padding: '8px 12px', fontSize: 10, color: 'var(--text-muted)', opacity: 0.6 }}>
-            beta 1.4
+            beta 1.5
           </div>
         </div>
       </div>

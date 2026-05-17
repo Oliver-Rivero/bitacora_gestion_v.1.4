@@ -62,7 +62,8 @@ export default function AnalyticsView() {
   const analysisData = useMemo(() => {
     let totalIncome = 0
     let totalExpenses = 0
-    let totalSavings = 0
+    let totalGasto = 0
+    let totalInversion = 0
 
     const isAnnual = viewMode === 'ytd' || viewMode === 'year'
     const dataPointsCount = isAnnual ? 12 : new Date(selectedYear, selectedMonth + 1, 0).getDate()
@@ -116,7 +117,8 @@ export default function AnalyticsView() {
         totalExpenses += t.amount
         timeData[index].gastos += t.amount
 
-        if (t.type === 'ahorro' || subName === 'Ahorro') totalSavings += t.amount
+        if (t.type === 'gasto') totalGasto += t.amount
+        if (t.type === 'inversion') totalInversion += t.amount
 
         if (!expenseCategories[catName]) {
           expenseCategories[catName] = { name: catName, value: 0, subcategories: {} }
@@ -167,6 +169,7 @@ export default function AnalyticsView() {
     const expensesDistribution = formatCategoryData(expenseCategories, totalExpenses)
     const incomeDistribution = formatCategoryData(incomeCategories, totalIncome)
 
+    const totalSavings = Math.max(0, totalIncome - totalGasto - totalInversion)
     const savingsRate = totalIncome > 0 ? (totalSavings / totalIncome) * 100 : 0
 
     return {

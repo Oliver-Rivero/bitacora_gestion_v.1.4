@@ -95,6 +95,7 @@ export default function LedgerView() {
       subcategoryId: t.subcategoryId?.toString() || '',
       entityId: t.entityId.toString(),
       toEntityId: t.toEntityId?.toString() || '',
+      goalId: t.goalId?.toString() || '',
       note: t.note || ''
     })
   }
@@ -110,10 +111,11 @@ export default function LedgerView() {
       date: inlineFormData.date,
       type: inlineFormData.type,
       amount: parseFloat(inlineFormData.amount) || 0,
-      categoryId: inlineFormData.categoryId ? parseInt(inlineFormData.categoryId) : null,
-      subcategoryId: inlineFormData.subcategoryId ? parseInt(inlineFormData.subcategoryId) : null,
+      categoryId: inlineFormData.type !== 'ahorro' && inlineFormData.categoryId ? parseInt(inlineFormData.categoryId) : null,
+      subcategoryId: inlineFormData.type !== 'ahorro' && inlineFormData.subcategoryId ? parseInt(inlineFormData.subcategoryId) : null,
       entityId: parseInt(inlineFormData.entityId),
       toEntityId: inlineFormData.toEntityId ? parseInt(inlineFormData.toEntityId) : null,
+      goalId: inlineFormData.type === 'ahorro' && inlineFormData.goalId ? parseInt(inlineFormData.goalId) : null,
       note: inlineFormData.note || ''
     }
     
@@ -221,11 +223,11 @@ export default function LedgerView() {
     const txn = {
       ...formData,
       amount: parseFloat(formData.amount) || 0,
-      categoryId: formData.categoryId ? parseInt(formData.categoryId) : null,
-      subcategoryId: formData.subcategoryId ? parseInt(formData.subcategoryId) : null,
+      categoryId: formData.type !== 'ahorro' && formData.categoryId ? parseInt(formData.categoryId) : null,
+      subcategoryId: formData.type !== 'ahorro' && formData.subcategoryId ? parseInt(formData.subcategoryId) : null,
       entityId: parseInt(formData.entityId),
       toEntityId: formData.toEntityId ? parseInt(formData.toEntityId) : null,
-      goalId: formData.goalId ? parseInt(formData.goalId) : null
+      goalId: formData.type === 'ahorro' && formData.goalId ? parseInt(formData.goalId) : null
     }
     
     if (formData.addReminder && formData.reminderDate) {
@@ -471,33 +473,54 @@ export default function LedgerView() {
                             {/* Categoría */}
                             <td>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                <select 
-                                  value={inlineFormData.categoryId} 
-                                  onChange={e => {
-                                    const newCatId = e.target.value;
-                                    const catObj = categories.find(c => c.id == newCatId);
-                                    const subId = catObj && catObj.subcategories.length > 0 ? catObj.subcategories[0].id.toString() : '';
-                                    setInlineFormData({ ...inlineFormData, categoryId: newCatId, subcategoryId: subId });
-                                  }}
-                                  style={{ padding: '6px 8px', fontSize: 12, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-color)', color: 'var(--text-main)', width: '100%', outline: 'none' }}
-                                >
-                                  <option value="">Selecciona categoría</option>
-                                  {categories.filter(c => c.type === inlineFormData.type).map(c => (
-                                    <option key={c.id} value={c.id}>{c.name}</option>
-                                  ))}
-                                </select>
-                                
-                                {inlineFormData.categoryId && (
+                                {inlineFormData.type === 'ahorro' ? (
                                   <select 
-                                    value={inlineFormData.subcategoryId} 
-                                    onChange={e => setInlineFormData({ ...inlineFormData, subcategoryId: e.target.value })}
-                                    style={{ padding: '4px 6px', fontSize: 11, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-color)', color: 'var(--text-main)', width: '100%', outline: 'none' }}
+                                    value={inlineFormData.goalId || ''} 
+                                    onChange={e => setInlineFormData({ ...inlineFormData, goalId: e.target.value })}
+                                    style={{ padding: '6px 8px', fontSize: 12, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-color)', color: 'var(--text-main)', width: '100%', outline: 'none' }}
                                   >
-                                    <option value="">Selecciona subcategoría</option>
-                                    {categories.find(c => c.id == inlineFormData.categoryId)?.subcategories.map(s => (
-                                      <option key={s.id} value={s.id}>{s.name}</option>
+                                    <option value="">Ninguna hucha</option>
+                                    {savingsGoals.map(g => (
+                                      <option key={g.id} value={g.id}>{g.name}</option>
                                     ))}
                                   </select>
+                                ) : (
+                                  <>
+                                    <select 
+                                      value={inlineFormData.categoryId} 
+                                      onChange={e => {
+                                        const newCatId = e.target.value;
+                                        const catObj = categories.find(c => c.id == newCatId);
+                                        const subId = catObj && catObj.subcategories.length > 0 ? catObj.subcategories[0].id.toString() : '';
+                                        setInlineFormData({ ...inlineFormData, categoryId: newCatId, subcategoryId: subId });
+                                      }}
+                                      style={{ padding: '6px 8px', fontSize: 12, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-color)', color: 'var(--text-main)', width: '100%', outline: 'none' }}
+                                    >
+                                      <option value="">Selecciona categoría</option>
+                                      {categories.filter(c => c.type === inlineFormData.type).map(c => (
+                                        <option key={c.id} value={c.id}>{c.name}</option>
+                                      ))}
+                                    </select>
+                                    
+                                    {(() => {
+                                      const selectedCat = categories.find(c => c.id == inlineFormData.categoryId);
+                                      const hasSubs = selectedCat && selectedCat.subcategories && selectedCat.subcategories.length > 0;
+                                      if (!hasSubs) return null;
+                                      
+                                      return (
+                                        <select 
+                                          value={inlineFormData.subcategoryId} 
+                                          onChange={e => setInlineFormData({ ...inlineFormData, subcategoryId: e.target.value })}
+                                          style={{ padding: '4px 6px', fontSize: 11, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-color)', color: 'var(--text-main)', width: '100%', outline: 'none' }}
+                                        >
+                                          <option value="">Selecciona subcategoría</option>
+                                          {selectedCat.subcategories.map(s => (
+                                            <option key={s.id} value={s.id}>{s.name}</option>
+                                          ))}
+                                        </select>
+                                      );
+                                    })()}
+                                  </>
                                 )}
                               </div>
                             </td>
@@ -611,8 +634,12 @@ export default function LedgerView() {
                                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: getCategoryColor(t.categoryName, t.type) }} />
                                 </div>
                                 <div>
-                                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>{t.categoryName || '-'}</div>
-                                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t.subcategoryName || ''}</div>
+                                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>
+                                    {t.type === 'ahorro' ? (t.goalName ? `Hucha: ${t.goalName}` : 'Ahorro (General)') : (t.categoryName || '-')}
+                                  </div>
+                                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                                    {t.type === 'ahorro' ? 'Hucha de Ahorro' : (t.subcategoryName || '')}
+                                  </div>
                                 </div>
                               </div>
                             </td>
@@ -729,40 +756,47 @@ export default function LedgerView() {
                 </div>
               )}
 
-              {(formData.type === 'gasto' || formData.type === 'ingreso') && (
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Categoría</label>
-                    <select 
-                      value={formData.categoryId} 
-                      onChange={e => {
-                        const newCatId = e.target.value
-                        const typeTransactions = transactions.filter(t => t.type === formData.type && t.categoryId == newCatId)
-                        
-                        const counts = {}
-                        typeTransactions.forEach(t => {
-                          if (t.subcategoryId) counts[t.subcategoryId] = (counts[t.subcategoryId] || 0) + 1
-                        })
-                        const entries = Object.entries(counts).sort((a, b) => b[1] - a[1])
-                        const mostFreqSub = entries.length > 0 ? entries[0][0] : ''
-                        
-                        setFormData({...formData, categoryId: newCatId, subcategoryId: mostFreqSub})
-                      }} 
-                      required
-                    >
-                      <option value="">Seleccionar...</option>
-                      {categories.filter(c => c.type === formData.type).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
+              {(formData.type === 'gasto' || formData.type === 'ingreso' || formData.type === 'inversion') && (() => {
+                const selectedCategory = categories.find(c => c.id == formData.categoryId)
+                const hasSubcategories = selectedCategory && selectedCategory.subcategories && selectedCategory.subcategories.length > 0
+
+                return (
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Categoría</label>
+                      <select 
+                        value={formData.categoryId} 
+                        onChange={e => {
+                          const newCatId = e.target.value
+                          const typeTransactions = transactions.filter(t => t.type === formData.type && t.categoryId == newCatId)
+                          
+                          const counts = {}
+                          typeTransactions.forEach(t => {
+                            if (t.subcategoryId) counts[t.subcategoryId] = (counts[t.subcategoryId] || 0) + 1
+                          })
+                          const entries = Object.entries(counts).sort((a, b) => b[1] - a[1])
+                          const mostFreqSub = entries.length > 0 ? entries[0][0] : ''
+                          
+                          setFormData({...formData, categoryId: newCatId, subcategoryId: mostFreqSub})
+                        }} 
+                        required
+                      >
+                        <option value="">Seleccionar...</option>
+                        {categories.filter(c => c.type === formData.type).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                    </div>
+                    {hasSubcategories && (
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Subcategoría</label>
+                        <select value={formData.subcategoryId} onChange={e => setFormData({...formData, subcategoryId: e.target.value})}>
+                          <option value="">Seleccionar...</option>
+                          {selectedCategory.subcategories.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                      </div>
+                    )}
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Subcategoría</label>
-                    <select value={formData.subcategoryId} onChange={e => setFormData({...formData, subcategoryId: e.target.value})}>
-                      <option value="">Seleccionar...</option>
-                      {categories.find(c => c.id == formData.categoryId)?.subcategories.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
-                  </div>
-                </div>
-              )}
+                )
+              })()}
 
               {formData.type === 'ahorro' && (
                 <div className="wizard-slide-enter" style={{ padding: '16px', background: 'rgba(126, 145, 177, 0.05)', borderRadius: 12, border: '1px solid var(--accent)' }}>

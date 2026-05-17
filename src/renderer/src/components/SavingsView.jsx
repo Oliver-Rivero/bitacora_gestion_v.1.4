@@ -83,16 +83,17 @@ export default function SavingsView() {
 
     // 2. If an entity is selected, record the transaction in the ledger
     if (entityId) {
-      const finanzasCat = categories.find(c => c.name === 'Finanzas')
-      const ahorroSub = finanzasCat?.subcategories.find(s => s.name === 'Ahorro')
+      const huchaCat = categories.find(c => c.name === 'Hucha')
+      const generalSub = huchaCat?.subcategories.find(s => s.name === 'General')
       
       await addTransaction({
         date,
-        type: amount > 0 ? 'gasto' : 'ingreso',
+        type: amount > 0 ? 'ahorro' : 'ingreso',
         amount: Math.abs(amount),
         entityId: parseInt(entityId),
-        categoryId: finanzasCat?.id,
-        subcategoryId: ahorroSub?.id,
+        categoryId: huchaCat?.id || null,
+        subcategoryId: generalSub?.id || null,
+        goalId: goal.id,
         note: `${amount > 0 ? 'Aportación' : 'Retirada'} hucha: ${goal.name}`
       })
     }
@@ -777,8 +778,8 @@ function CreateAutomationModal({ onClose, onSave, entities, savingsGoals, catego
   const [duration, setDuration] = useState(12)
   const [active, setActive] = useState(editData?.active ?? 1)
 
-  const finanzasCat = categories.find(c => c.name === 'Finanzas')
-  const ahorroSub = finanzasCat?.subcategories.find(s => s.name === 'Ahorro')
+  const huchaCat = categories.find(c => c.name === 'Hucha')
+  const generalSub = huchaCat?.subcategories.find(s => s.name === 'General')
 
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)' }}>
@@ -841,8 +842,8 @@ function CreateAutomationModal({ onClose, onSave, entities, savingsGoals, catego
             goalId: parseInt(goalId), 
             amount: parseFloat(amount), 
             dayOfMonth: parseInt(dayOfMonth),
-            categoryId: finanzasCat?.id,
-            subcategoryId: ahorroSub?.id,
+            categoryId: huchaCat?.id || null,
+            subcategoryId: generalSub?.id || null,
             startDate: editData?.startDate || new Date().toISOString().split('T')[0],
             endDate: editData?.endDate || new Date(new Date().setMonth(new Date().getMonth() + parseInt(duration))).toISOString().split('T')[0],
             active

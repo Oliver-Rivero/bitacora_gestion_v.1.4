@@ -128,6 +128,7 @@ export default function DashboardView() {
   const chartData = useMemo(() => {
     const monthlyData = {}
     const categoryAllocation = {}
+    let totalIncomeFiltered = 0
 
     transactions.forEach(t => {
       // Excluir ajustes
@@ -148,6 +149,16 @@ export default function DashboardView() {
 
       if (t.type === 'ingreso') {
         monthlyData[monthKey].ingresos += t.amount
+        
+        let include = true
+        if (expenseView === 'mensual') {
+            include = tDate.getMonth() === selectedMonth && tDate.getFullYear() === selectedYear
+        } else if (expenseView === 'anual') {
+            include = tDate.getFullYear() === selectedYear
+        }
+        if (include) {
+            totalIncomeFiltered += t.amount
+        }
       } else if (isAhorro) {
         monthlyData[monthKey].ahorros += t.amount
       } else if (isInversion) {
@@ -186,7 +197,11 @@ export default function DashboardView() {
     const barData = Object.values(monthlyData).sort((a, b) => a.name.localeCompare(b.name)).slice(-12)
     
     const totalExpensesFiltered = Object.values(categoryAllocation).reduce((acc, c) => acc + c.value, 0)
-    const distributionData = Object.values(categoryAllocation)
+    const hasFreeMargin = totalIncomeFiltered > totalExpensesFiltered
+    const freeMarginValue = hasFreeMargin ? (totalIncomeFiltered - totalExpensesFiltered) : 0
+    const totalDistributionSum = hasFreeMargin ? totalIncomeFiltered : totalExpensesFiltered
+
+    let distributionData = Object.values(categoryAllocation)
       .map((cat, i) => {
         let catColor = COLORS[i % COLORS.length]
         if (cat.name === 'Ahorro') {
@@ -200,11 +215,22 @@ export default function DashboardView() {
         return {
           ...cat,
           color: catColor,
-          percentage: totalExpensesFiltered > 0 ? (cat.value / totalExpensesFiltered) * 100 : 0,
+          percentage: totalDistributionSum > 0 ? (cat.value / totalDistributionSum) * 100 : 0,
           subcategories: Object.values(cat.subcategories).sort((a, b) => b.value - a.value)
         }
       })
-      .sort((a, b) => b.value - a.value)
+
+    distributionData.sort((a, b) => b.value - a.value)
+
+    if (freeMarginValue > 0) {
+      distributionData.push({
+        name: 'Margen Libre',
+        value: freeMarginValue,
+        color: 'rgba(126, 145, 177, 0.25)', // Color sutil translúcido que sugiere espacio "vacío" o disponible
+        percentage: (freeMarginValue / totalDistributionSum) * 100,
+        subcategories: [{ name: 'Ahorro no asignado (Excedente)', value: freeMarginValue }]
+      })
+    }
 
     const totalEntBalance = entities.reduce((acc, e) => acc + e.balance, 0)
     const entityBarData = [...entities]
@@ -215,7 +241,7 @@ export default function DashboardView() {
         percentage: totalEntBalance > 0 ? (e.balance / totalEntBalance) * 100 : 0
       }))
 
-    return { barData, distributionData, entityBarData, totalEntBalance, totalExpensesFiltered }
+    return { barData, distributionData, entityBarData, totalEntBalance, totalExpensesFiltered, totalIncomeFiltered, totalDistributionSum, hasFreeMargin }
   }, [transactions, entities, savingsGoals, expenseView, selectedMonth, selectedYear])
 
   const changeMonth = (delta) => {
@@ -306,11 +332,16 @@ export default function DashboardView() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 20, flex: 1, minHeight: 0 }}>
           {/* Card 1: Distribución */}
           <div style={{ background: 'rgba(0,0,0,0.01)', border: '1px solid var(--border)', borderRadius: 16, padding: 20, display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Distribución de Flujos</span>
-              <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.5px' }}>
-                {formatCurrency(chartData.totalExpensesFiltered)}
-              </span>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.5px' }}>
+                  {formatCurrency(chartData.totalDistributionSum)}
+                </span>
+                <span style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>
+                  {chartData.hasFreeMargin ? 'Flujo Total (Ingresos)' : 'Gastado Total (Déficit)'}
+                </span>
+              </div>
             </div>
             
             {/* Storage Bar */}

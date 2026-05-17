@@ -84,14 +84,22 @@ export default function ConfigView() {
                     value={newCat.name} 
                     onChange={e => setNewCat({...newCat, name: e.target.value})} 
                   />
-                  <select style={{ width: 120 }} value={newCat.type} onChange={e => setNewCat({...newCat, type: e.target.value})}>
+                  <select 
+                    style={{ width: 140 }} 
+                    value={newCat.type} 
+                    onChange={e => {
+                      setNewCat({...newCat, type: e.target.value});
+                      setNewSub({...newSub, categoryId: ''});
+                    }}
+                  >
                     <option value="gasto">Gasto</option>
                     <option value="ingreso">Ingreso</option>
+                    <option value="inversion">Inversión</option>
                   </select>
                   <button className="btn" onClick={async () => {
                     if (newCat.name) {
                       await addCategory(newCat)
-                      setNewCat({ name: '', type: 'gasto' })
+                      setNewCat({ name: '', type: newCat.type })
                     }
                   }}>
                     <Plus size={16} />
@@ -99,10 +107,19 @@ export default function ConfigView() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {categories.map(cat => (
+                  {categories.filter(c => c.type === newCat.type).map(cat => (
                     <div key={cat.id} className="glass-panel" style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <Tag size={16} color={cat.type === 'ingreso' ? 'var(--success)' : 'var(--danger)'} />
+                        <Tag 
+                          size={16} 
+                          color={
+                            cat.type === 'ingreso' ? 'var(--success)' : 
+                            cat.type === 'gasto' ? 'var(--danger)' : 
+                            cat.type === 'ahorro' ? 'var(--accent)' :
+                            cat.type === 'inversion' ? '#827A9E' :
+                            'var(--text-muted)'
+                          } 
+                        />
                         <span style={{ fontWeight: 600 }}>{cat.name}</span>
                         <span style={{ fontSize: 10, opacity: 0.6, textTransform: 'uppercase' }}>({cat.type})</span>
                       </div>
@@ -120,7 +137,7 @@ export default function ConfigView() {
                 <div style={{ display: 'flex', gap: 12, marginBottom: 20, marginTop: 12 }}>
                   <select style={{ flex: 1 }} value={newSub.categoryId} onChange={e => setNewSub({...newSub, categoryId: e.target.value})}>
                     <option value="">Categoría...</option>
-                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    {categories.filter(c => c.type === newCat.type).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                   <input 
                     placeholder="Nombre sub..." 
@@ -138,17 +155,33 @@ export default function ConfigView() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {categories.find(c => c.id == newSub.categoryId)?.subcategories.map(sub => (
-                    <div key={sub.id} className="glass-panel" style={{ padding: '10px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.02)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <Layers size={14} color="var(--text-muted)" />
-                        <span style={{ fontSize: 14 }}>{sub.name}</span>
-                      </div>
-                      <button className="btn-secondary" style={{ padding: 4 }} onClick={() => deleteSubcategory(sub.id)}>
-                        <Trash2 size={12} />
-                      </button>
+                  {newSub.categoryId ? (
+                    (() => {
+                      const subcategories = categories.find(c => c.id == newSub.categoryId)?.subcategories || [];
+                      if (subcategories.length === 0) {
+                        return (
+                          <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, border: '1px dashed var(--border)', borderRadius: 12, background: 'rgba(0,0,0,0.01)' }}>
+                            Esta categoría aún no tiene subcategorías. ¡Crea la primera arriba!
+                          </div>
+                        );
+                      }
+                      return subcategories.map(sub => (
+                        <div key={sub.id} className="glass-panel" style={{ padding: '10px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.02)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <Layers size={14} color="var(--text-muted)" />
+                            <span style={{ fontSize: 14 }}>{sub.name}</span>
+                          </div>
+                          <button className="btn-secondary" style={{ padding: 4 }} onClick={() => deleteSubcategory(sub.id)}>
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      ));
+                    })()
+                  ) : (
+                    <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, border: '1px dashed var(--border)', borderRadius: 12, background: 'rgba(0,0,0,0.01)' }}>
+                      Selecciona una categoría arriba para gestionar sus subcategorías.
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             </div>
@@ -308,13 +341,13 @@ export default function ConfigView() {
 
                 {/* Sección: Categorías Generales */}
                 <div className="glass-panel" style={{ padding: 24, border: '1px solid var(--border)' }}>
-                  <h3 style={{ margin: '0 0 8px 0', fontSize: 16, fontWeight: 700, color: 'var(--text-main)' }}>Categorías de Gastos e Ingresos</h3>
+                  <h3 style={{ margin: '0 0 8px 0', fontSize: 16, fontWeight: 700, color: 'var(--text-main)' }}>Categorías de Flujo Financiero</h3>
                   <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 20 }}>
                     Lista de tus categorías registradas. Modifica el color de cada una para hacer que los gráficos de barras y sectores se vean a tu gusto.
                   </p>
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
-                    {categories.map((cat, i) => {
+                    {categories.filter(c => c.type !== 'ahorro').map((cat, i) => {
                       const defaultColor = COLORS[i % COLORS.length]
                       const customColor = localStorage.getItem(`category_color_${cat.name}`) || defaultColor
                       
@@ -355,8 +388,16 @@ export default function ConfigView() {
                                 textTransform: 'uppercase', 
                                 padding: '2px 6px', 
                                 borderRadius: 4, 
-                                background: cat.type === 'ingreso' ? 'rgba(46, 204, 113, 0.1)' : 'rgba(231, 76, 60, 0.1)', 
-                                color: cat.type === 'ingreso' ? 'var(--success)' : 'var(--danger)',
+                                background: 
+                                  cat.type === 'ingreso' ? 'rgba(46, 204, 113, 0.1)' : 
+                                  cat.type === 'gasto' ? 'rgba(231, 76, 60, 0.1)' :
+                                  cat.type === 'ahorro' ? 'rgba(93, 126, 167, 0.15)' :
+                                  'rgba(130, 122, 158, 0.15)', 
+                                color: 
+                                  cat.type === 'ingreso' ? 'var(--success)' : 
+                                  cat.type === 'gasto' ? 'var(--danger)' :
+                                  cat.type === 'ahorro' ? 'var(--accent)' :
+                                  '#827A9E',
                                 display: 'inline-block',
                                 marginTop: 4
                               }}>
