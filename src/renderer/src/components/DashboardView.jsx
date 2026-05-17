@@ -369,14 +369,26 @@ export default function DashboardView() {
                     cursor: 'default'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: cat.color }} />
-                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cat.name}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <div style={{ 
+                      width: 18, 
+                      height: 18, 
+                      borderRadius: '50%', 
+                      background: `${cat.color}15`, 
+                      border: `1px solid ${cat.color}30`, 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      flexShrink: 0 
+                    }}>
+                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: cat.color }} />
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cat.name}</span>
                   </div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', marginLeft: 12 }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--accent)', marginLeft: 26 }}>
                     {formatCurrency(cat.value)}
                   </div>
-                  <div style={{ fontSize: 9, color: 'var(--text-muted)', marginLeft: 12 }}>
+                  <div style={{ fontSize: 9, color: 'var(--text-muted)', marginLeft: 26 }}>
                     {formatNumber(cat.percentage)}% del total
                   </div>
 

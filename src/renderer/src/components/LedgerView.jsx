@@ -8,6 +8,23 @@ import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 import RecurringView from './RecurringView'
 
+const getCategoryColor = (categoryName, type) => {
+  if (!categoryName) return 'var(--accent)'
+  const custom = localStorage.getItem('category_color_' + categoryName)
+  if (custom) return custom
+  if (categoryName === 'Ahorro' || type === 'ahorro') return localStorage.getItem('color_ahorro') || '#5D7EA7'
+  if (categoryName === 'Inversión' || type === 'inversion') return localStorage.getItem('color_inversion') || '#827A9E'
+  
+  // Default static fallback colors based on categoryName length or simple hash
+  const fallbackColors = ['#7E91B1', '#827A9E', '#6CA57B', '#C06868', '#D8A05E', '#A78BFA', '#F472B6']
+  let hash = 0
+  for (let i = 0; i < categoryName.length; i++) {
+    hash = categoryName.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  const index = Math.abs(hash) % fallbackColors.length
+  return fallbackColors[index]
+}
+
 export default function LedgerView() {
   const { 
     transactions, 
@@ -393,8 +410,25 @@ export default function LedgerView() {
                         </span>
                       </td>
                       <td>
-                        <div style={{ fontSize: 13, fontWeight: 500 }}>{t.categoryName || '-'}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t.subcategoryName || ''}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{ 
+                            width: 28, 
+                            height: 28, 
+                            borderRadius: '50%', 
+                            background: `${getCategoryColor(t.categoryName, t.type)}15`, 
+                            border: `1px solid ${getCategoryColor(t.categoryName, t.type)}30`, 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center', 
+                            flexShrink: 0 
+                          }}>
+                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: getCategoryColor(t.categoryName, t.type) }} />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>{t.categoryName || '-'}</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t.subcategoryName || ''}</div>
+                          </div>
+                        </div>
                       </td>
                       <td>{t.entityName} {t.toEntityName && `→ ${t.toEntityName}`}</td>
                       <td style={{ fontWeight: 600, color: t.type === 'ingreso' ? 'var(--success)' : (t.type === 'gasto' || t.type === 'ahorro' || t.type === 'inversion') ? 'var(--danger)' : 'inherit' }}>

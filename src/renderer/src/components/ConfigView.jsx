@@ -244,7 +244,19 @@ export default function ConfigView() {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
                     <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', background: 'rgba(0,0,0,0.02)', borderRadius: 12, border: '1px solid var(--border)', justifyContent: 'space-between' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div style={{ width: 12, height: 12, borderRadius: '50%', background: colorAhorro }} />
+                        <div style={{ 
+                          width: 28, 
+                          height: 28, 
+                          borderRadius: '50%', 
+                          background: `${colorAhorro}15`, 
+                          border: `1px solid ${colorAhorro}30`, 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center', 
+                          flexShrink: 0 
+                        }}>
+                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: colorAhorro }} />
+                        </div>
                         <div>
                           <div style={{ fontWeight: 600, fontSize: 14 }}>Ahorro (Huchas)</div>
                           <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Flujos de ahorro personal</span>
@@ -263,7 +275,19 @@ export default function ConfigView() {
 
                     <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', background: 'rgba(0,0,0,0.02)', borderRadius: 12, border: '1px solid var(--border)', justifyContent: 'space-between' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div style={{ width: 12, height: 12, borderRadius: '50%', background: colorInversion }} />
+                        <div style={{ 
+                          width: 28, 
+                          height: 28, 
+                          borderRadius: '50%', 
+                          background: `${colorInversion}15`, 
+                          border: `1px solid ${colorInversion}30`, 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center', 
+                          flexShrink: 0 
+                        }}>
+                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: colorInversion }} />
+                        </div>
                         <div>
                           <div style={{ fontWeight: 600, fontSize: 14 }}>Inversión (Activos)</div>
                           <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Flujos salientes a inversión</span>
@@ -310,7 +334,19 @@ export default function ConfigView() {
                           className="v5-hover-effect"
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-                            <div style={{ width: 12, height: 12, borderRadius: '50%', background: customColor, flexShrink: 0 }} />
+                            <div style={{ 
+                              width: 28, 
+                              height: 28, 
+                              borderRadius: '50%', 
+                              background: `${customColor}15`, 
+                              border: `1px solid ${customColor}30`, 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center', 
+                              flexShrink: 0 
+                            }}>
+                              <div style={{ width: 8, height: 8, borderRadius: '50%', background: customColor }} />
+                            </div>
                             <div style={{ minWidth: 0 }}>
                               <div style={{ fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cat.name}</div>
                               <span style={{ 
