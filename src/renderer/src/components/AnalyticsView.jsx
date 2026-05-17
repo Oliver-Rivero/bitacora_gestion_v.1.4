@@ -144,12 +144,23 @@ export default function AnalyticsView() {
 
     const formatCategoryData = (catObj, total) => {
       return Object.values(catObj)
-        .map((cat, i) => ({
-          ...cat,
-          color: COLORS[i % COLORS.length],
-          percentage: total > 0 ? (cat.value / total) * 100 : 0,
-          subcategories: Object.values(cat.subcategories).sort((a, b) => b.value - a.value)
-        }))
+        .map((cat, i) => {
+          let catColor = COLORS[i % COLORS.length]
+          if (cat.name === 'Ahorro') {
+            catColor = localStorage.getItem('color_ahorro') || '#5D7EA7'
+          } else if (cat.name === 'Inversión') {
+            catColor = localStorage.getItem('color_inversion') || '#827A9E'
+          } else {
+            catColor = localStorage.getItem(`category_color_${cat.name}`) || COLORS[i % COLORS.length]
+          }
+
+          return {
+            ...cat,
+            color: catColor,
+            percentage: total > 0 ? (cat.value / total) * 100 : 0,
+            subcategories: Object.values(cat.subcategories).sort((a, b) => b.value - a.value)
+          }
+        })
         .sort((a, b) => b.value - a.value)
     }
 

@@ -1,8 +1,10 @@
 import React, { useState } from 'react'
 import { useData } from '../context/DataContext'
-import { Plus, Trash2, Building2, Tag, Layers, Globe, ExternalLink, AlertTriangle, Download, Upload, ShieldCheck } from 'lucide-react'
+import { Plus, Trash2, Building2, Tag, Layers, Globe, ExternalLink, AlertTriangle, Download, Upload, ShieldCheck, Palette } from 'lucide-react'
 import { getLogoUrl, getDomain } from '../utils/formatters'
 import { clsx } from 'clsx'
+
+const COLORS = ['#7E91B1', '#9CAF9C', '#D18B8B', '#A29BBD', '#A09D9A', '#BFA89A', '#D9CD96', '#9BADC4']
 
 export default function ConfigView() {
   const { 
@@ -22,6 +24,21 @@ export default function ConfigView() {
   // Entity Form
   const [newEnt, setNewEnt] = useState({ name: '', url: '', color: '#7E91B1' })
 
+  // Special Category Colors
+  const [colorAhorro, setColorAhorro] = useState(localStorage.getItem('color_ahorro') || '#5D7EA7')
+  const [colorInversion, setColorInversion] = useState(localStorage.getItem('color_inversion') || '#827A9E')
+  const [triggerRefresh, setTriggerRefresh] = useState(0)
+
+  const handleColorChange = (type, val) => {
+    if (type === 'ahorro') {
+      setColorAhorro(val)
+      localStorage.setItem('color_ahorro', val)
+    } else {
+      setColorInversion(val)
+      localStorage.setItem('color_inversion', val)
+    }
+  }
+
   return (
     <div>
       <h1>Configuración</h1>
@@ -38,6 +55,12 @@ export default function ConfigView() {
           onClick={() => setActiveTab('entities')}
         >
           Entidades Bancarias
+        </button>
+        <button 
+          className={clsx('segment-item', activeTab === 'customization' && 'active')} 
+          onClick={() => setActiveTab('customization')}
+        >
+          Personalización
         </button>
         <button 
           className={clsx('segment-item', activeTab === 'advanced' && 'active')} 
@@ -199,6 +222,130 @@ export default function ConfigView() {
                     </button>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'customization' && (
+            <div style={{ animation: 'fadeUp 0.3s ease', padding: '32px' }}>
+              <div style={{ maxWidth: 800, margin: '0 auto' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, color: 'var(--accent)' }}>
+                  <Palette size={24} />
+                  <h2 style={{ margin: 0 }}>Paleta de Colores de la Aplicación</h2>
+                </div>
+                <p style={{ color: 'var(--text-muted)', fontSize: 14, lineHeight: 1.6, marginBottom: 32 }}>
+                  Personaliza los colores de tus flujos financieros y categorías de transacciones. Los cambios se aplicarán instantáneamente a los gráficos de distribución y paneles de control.
+                </p>
+
+                {/* Sección: Categorías Especiales */}
+                <div className="glass-panel" style={{ padding: 24, marginBottom: 32, border: '1px solid var(--border)' }}>
+                  <h3 style={{ margin: '0 0 16px 0', fontSize: 16, fontWeight: 700, color: 'var(--text-main)' }}>Categorías del Balance Global</h3>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', background: 'rgba(0,0,0,0.02)', borderRadius: 12, border: '1px solid var(--border)', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ width: 12, height: 12, borderRadius: '50%', background: colorAhorro }} />
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: 14 }}>Ahorro (Huchas)</div>
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Flujos de ahorro personal</span>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <input 
+                          type="color" 
+                          style={{ width: 40, height: 32, padding: 0, border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer', background: 'transparent' }} 
+                          value={colorAhorro} 
+                          onChange={(e) => handleColorChange('ahorro', e.target.value)} 
+                        />
+                        <span style={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 700 }}>{colorAhorro.toUpperCase()}</span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', background: 'rgba(0,0,0,0.02)', borderRadius: 12, border: '1px solid var(--border)', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ width: 12, height: 12, borderRadius: '50%', background: colorInversion }} />
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: 14 }}>Inversión (Activos)</div>
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Flujos salientes a inversión</span>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <input 
+                          type="color" 
+                          style={{ width: 40, height: 32, padding: 0, border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer', background: 'transparent' }} 
+                          value={colorInversion} 
+                          onChange={(e) => handleColorChange('inversion', e.target.value)} 
+                        />
+                        <span style={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 700 }}>{colorInversion.toUpperCase()}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sección: Categorías Generales */}
+                <div className="glass-panel" style={{ padding: 24, border: '1px solid var(--border)' }}>
+                  <h3 style={{ margin: '0 0 8px 0', fontSize: 16, fontWeight: 700, color: 'var(--text-main)' }}>Categorías de Gastos e Ingresos</h3>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 20 }}>
+                    Lista de tus categorías registradas. Modifica el color de cada una para hacer que los gráficos de barras y sectores se vean a tu gusto.
+                  </p>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+                    {categories.map((cat, i) => {
+                      const defaultColor = COLORS[i % COLORS.length]
+                      const customColor = localStorage.getItem(`category_color_${cat.name}`) || defaultColor
+                      
+                      return (
+                        <div 
+                          key={cat.id} 
+                          style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'space-between', 
+                            padding: '12px 16px', 
+                            background: 'rgba(0,0,0,0.01)', 
+                            borderRadius: 12, 
+                            border: '1px solid var(--border)',
+                            transition: 'all 0.2s ease'
+                          }}
+                          className="v5-hover-effect"
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                            <div style={{ width: 12, height: 12, borderRadius: '50%', background: customColor, flexShrink: 0 }} />
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cat.name}</div>
+                              <span style={{ 
+                                fontSize: 9, 
+                                fontWeight: 700, 
+                                textTransform: 'uppercase', 
+                                padding: '2px 6px', 
+                                borderRadius: 4, 
+                                background: cat.type === 'ingreso' ? 'rgba(46, 204, 113, 0.1)' : 'rgba(231, 76, 60, 0.1)', 
+                                color: cat.type === 'ingreso' ? 'var(--success)' : 'var(--danger)',
+                                display: 'inline-block',
+                                marginTop: 4
+                              }}>
+                                {cat.type}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                            <input 
+                              type="color" 
+                              style={{ width: 40, height: 32, padding: 0, border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer', background: 'transparent' }} 
+                              value={customColor} 
+                              onChange={(e) => {
+                                localStorage.setItem(`category_color_${cat.name}`, e.target.value)
+                                setTriggerRefresh(prev => prev + 1)
+                              }} 
+                            />
+                            <span style={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 700 }}>{customColor.toUpperCase()}</span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
           )}

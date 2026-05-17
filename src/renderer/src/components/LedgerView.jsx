@@ -328,7 +328,7 @@ export default function LedgerView() {
                   <button className={clsx('segment-item', quickFilter === 'all' && 'active')} style={{ fontSize: 11, padding: '4px 12px' }} onClick={() => applyQuickFilter('all')}>Todo</button>
                   <button className={clsx('segment-item', quickFilter === 'thisMonth' && 'active')} style={{ fontSize: 11, padding: '4px 12px' }} onClick={() => applyQuickFilter('thisMonth')}>Este Mes</button>
                   <button className={clsx('segment-item', quickFilter === 'lastMonth' && 'active')} style={{ fontSize: 11, padding: '4px 12px' }} onClick={() => applyQuickFilter('lastMonth')}>Mes Pasado</button>
-                  <button className={clsx('segment-item', quickFilter === 'highValue' && 'active')} style={{ fontSize: 11, padding: '4px 12px' }} onClick={() => applyQuickFilter('highValue')}>Gastos > 100€</button>
+                  <button className={clsx('segment-item', quickFilter === 'highValue' && 'active')} style={{ fontSize: 11, padding: '4px 12px' }} onClick={() => applyQuickFilter('highValue')}>{"Gastos > 100€"}</button>
                   <button className={clsx('segment-item', quickFilter === 'recurring' && 'active')} style={{ fontSize: 11, padding: '4px 12px' }} onClick={() => applyQuickFilter('recurring')}>Recurrentes</button>
                   <button className={clsx('segment-item', quickFilter === 'subscriptions' && 'active')} style={{ fontSize: 11, padding: '4px 12px' }} onClick={() => applyQuickFilter('subscriptions')}>Suscripciones</button>
                   <button className={clsx('segment-item', quickFilter === 'custom' && 'active')} style={{ fontSize: 11, padding: '4px 12px' }} onClick={() => setQuickFilter('custom')}>Personalizado</button>

@@ -10,8 +10,8 @@ import { dialog } from 'electron'
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
-    width: 1600,
-    height: 1100,
+    width: 1760,
+    height: 1210,
     show: false,
     titleBarStyle: 'hiddenInset',
     backgroundColor: '#000000',
