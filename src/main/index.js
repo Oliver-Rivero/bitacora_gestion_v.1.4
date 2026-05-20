@@ -72,6 +72,28 @@ app.whenReady().then(() => {
     return true
   })
 
+  // Entity Notes
+  ipcMain.handle('db-get-entity-notes', (_, entityId) => {
+    return db.prepare('SELECT * FROM entity_notes WHERE entityId = ? ORDER BY createdAt DESC').all(entityId)
+  })
+
+  ipcMain.handle('db-add-entity-note', (_, { entityId, content, createdAt }) => {
+    const stmt = db.prepare('INSERT INTO entity_notes (entityId, content, createdAt) VALUES (?, ?, ?)')
+    const info = stmt.run(entityId, content, createdAt || new Date().toISOString())
+    return info.lastInsertRowid
+  })
+
+  ipcMain.handle('db-edit-entity-note', (_, { id, content }) => {
+    const stmt = db.prepare('UPDATE entity_notes SET content = ? WHERE id = ?')
+    stmt.run(content, id)
+    return true
+  })
+
+  ipcMain.handle('db-delete-entity-note', (_, id) => {
+    db.prepare('DELETE FROM entity_notes WHERE id = ?').run(id)
+    return true
+  })
+
   // Categories & Subcategories
   ipcMain.handle('db-get-categories', () => {
     const categories = db.prepare('SELECT * FROM categories ORDER BY name ASC').all()

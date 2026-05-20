@@ -74,6 +74,10 @@ export function DataProvider({ children }) {
       await window.api.addEntity(ent)
       await refreshData()
     },
+    editEntity: async (ent) => {
+      await window.api.editEntity(ent)
+      await refreshData()
+    },
     deleteEntity: async (id) => {
       await window.api.deleteEntity(id)
       await refreshData()

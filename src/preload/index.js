@@ -7,6 +7,10 @@ const api = {
   addEntity: (data) => ipcRenderer.invoke('db-add-entity', data),
   editEntity: (data) => ipcRenderer.invoke('db-edit-entity', data),
   deleteEntity: (id) => ipcRenderer.invoke('db-delete-entity', id),
+  getEntityNotes: (entityId) => ipcRenderer.invoke('db-get-entity-notes', entityId),
+  addEntityNote: (data) => ipcRenderer.invoke('db-add-entity-note', data),
+  editEntityNote: (data) => ipcRenderer.invoke('db-edit-entity-note', data),
+  deleteEntityNote: (id) => ipcRenderer.invoke('db-delete-entity-note', id),
 
   // Categories
   getCategories: () => ipcRenderer.invoke('db-get-categories'),

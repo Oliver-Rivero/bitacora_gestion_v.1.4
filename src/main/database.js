@@ -114,6 +114,14 @@ export function setupDatabase() {
       name TEXT NOT NULL,
       amount REAL NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS entity_notes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entityId INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      createdAt TEXT NOT NULL,
+      FOREIGN KEY (entityId) REFERENCES entities(id) ON DELETE CASCADE
+    );
   `)
 
   // Migrations for existing databases

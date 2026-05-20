@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useData } from '../context/DataContext'
-import { Plus, Trash2, Building2, Tag, Layers, Globe, ExternalLink, AlertTriangle, Download, Upload, ShieldCheck, Palette } from 'lucide-react'
+import { Plus, Trash2, Building2, Tag, Layers, Globe, ExternalLink, AlertTriangle, Download, Upload, ShieldCheck, Palette, Edit2, X } from 'lucide-react'
 import { getLogoUrl, getDomain } from '../utils/formatters'
 import { clsx } from 'clsx'
 
@@ -9,7 +9,7 @@ const COLORS = ['#7E91B1', '#9CAF9C', '#D18B8B', '#A29BBD', '#A09D9A', '#BFA89A'
 export default function ConfigView() {
   const { 
     entities, categories, 
-    addEntity, deleteEntity,
+    addEntity, editEntity, deleteEntity,
     addCategory, deleteCategory,
     addSubcategory, deleteSubcategory,
     resetAllData, exportDatabase, importDatabase
@@ -23,6 +23,9 @@ export default function ConfigView() {
   
   // Entity Form
   const [newEnt, setNewEnt] = useState({ name: '', url: '', color: '#7E91B1' })
+
+  // Edit Entity Form State
+  const [editingEntity, setEditingEntity] = useState(null)
 
   // Special Category Colors
   const [colorAhorro, setColorAhorro] = useState(localStorage.getItem('color_ahorro') || '#5D7EA7')
@@ -250,7 +253,10 @@ export default function ConfigView() {
                         </span>
                       </div>
                     </div>
-                    <button className="btn-secondary" style={{ padding: 8, borderRadius: 8, color: 'var(--danger)', borderColor: 'transparent' }} onClick={() => deleteEntity(ent.id)}>
+                    <button className="btn-secondary" style={{ padding: 8, borderRadius: 8, borderColor: 'transparent', marginRight: -6 }} onClick={() => setEditingEntity(ent)} title="Editar Entidad">
+                      <Edit2 size={16} />
+                    </button>
+                    <button className="btn-secondary" style={{ padding: 8, borderRadius: 8, color: 'var(--danger)', borderColor: 'transparent' }} onClick={() => deleteEntity(ent.id)} title="Eliminar Entidad">
                       <Trash2 size={16} />
                     </button>
                   </div>
@@ -504,6 +510,85 @@ export default function ConfigView() {
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+      {editingEntity && (
+        <EditEntityModal 
+          entity={editingEntity} 
+          onClose={() => setEditingEntity(null)} 
+          onSave={async (data) => {
+            await editEntity(data)
+            setEditingEntity(null)
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+function EditEntityModal({ entity, onClose, onSave }) {
+  const [name, setName] = useState(entity.name)
+  const [url, setUrl] = useState(entity.url || '')
+  const [color, setColor] = useState(entity.color || '#7E91B1')
+
+  const COLORS = ['#7E91B1', '#9CAF9C', '#D18B8B', '#A29BBD', '#A09D9A', '#BFA89A', '#D9CD96', '#9BADC4']
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)' }}>
+      <div className="glass-panel animate-scaleIn" style={{ width: 450, padding: 32, background: 'var(--bg-color)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+          <h2 style={{ margin: 0 }}>Editar Entidad</h2>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={24} /></button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 24 }}>
+          <div>
+            <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Nombre de la Entidad</label>
+            <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Ej: Santander, Revolut..." />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>URL del Sitio Web</label>
+            <input type="text" value={url} onChange={e => setUrl(e.target.value)} placeholder="Ej: santander.com" />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Color de Identificación</label>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              {COLORS.map(c => (
+                <div 
+                  key={c}
+                  onClick={() => setColor(c)}
+                  style={{ 
+                    width: 24, 
+                    height: 24, 
+                    borderRadius: '50%', 
+                    background: c, 
+                    cursor: 'pointer',
+                    border: color === c ? '2px solid white' : '2px solid transparent',
+                    boxShadow: color === c ? '0 0 0 1px var(--text-main)' : 'none'
+                  }}
+                />
+              ))}
+              <input 
+                type="color" 
+                value={color} 
+                onChange={e => setColor(e.target.value)} 
+                style={{ width: 28, height: 28, border: 'none', background: 'transparent', padding: 0, cursor: 'pointer' }} 
+              />
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button className="btn-secondary" style={{ flex: 1 }} onClick={onClose}>Cancelar</button>
+          <button 
+            className="btn" 
+            style={{ flex: 1, justifyContent: 'center' }} 
+            onClick={() => onSave({ id: entity.id, name, url, color })}
+            disabled={!name}
+          >
+            Guardar Cambios
+          </button>
         </div>
       </div>
     </div>

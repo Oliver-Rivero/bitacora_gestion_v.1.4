@@ -126,75 +126,161 @@ export default function DashboardView() {
   }, [transactions, entities, savingsGoals])
 
   const chartData = useMemo(() => {
-    const monthlyData = {}
     const categoryAllocation = {}
     let totalIncomeFiltered = 0
 
+    // 1. Generate barData depending on expenseView (temporal selection)
+    let barData = []
+
+    if (expenseView === 'mensual') {
+      // Single bar group for the selected month representing the totals
+      const monthLabel = `${MONTHS[selectedMonth]} ${selectedYear}`
+      const monthData = {
+        name: monthLabel,
+        ingresos: 0,
+        gastos: 0,
+        ahorros: 0,
+        inversiones: 0
+      }
+
+      transactions.forEach(t => {
+        if (t.categoryName === 'Ajuste' || t.subcategoryName?.includes('Ajuste')) return
+        const [y, m, d] = t.date.split('-').map(Number)
+        const tDate = new Date(y, m - 1, d)
+
+        if (tDate.getFullYear() === selectedYear && tDate.getMonth() === selectedMonth) {
+          const isAhorro = t.type === 'ahorro' || (t.categoryName === 'Finanzas' && t.subcategoryName === 'Ahorro')
+          const isInversion = t.type === 'inversion' || (t.categoryName === 'Finanzas' && t.subcategoryName === 'Inversión')
+
+          if (t.type === 'ingreso') {
+            monthData.ingresos += t.amount
+          } else if (isAhorro) {
+            monthData.ahorros += t.amount
+          } else if (isInversion) {
+            monthData.inversiones += t.amount
+          } else {
+            monthData.gastos += t.amount
+          }
+        }
+      })
+      barData = [monthData]
+
+    } else if (expenseView === 'anual') {
+      // Monthly evolution for the selected year (short text names for months, without year)
+      const SHORT_MONTHS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+      const monthlyDataForYear = Array.from({ length: 12 }, (_, i) => ({
+        name: SHORT_MONTHS[i],
+        ingresos: 0,
+        gastos: 0,
+        ahorros: 0,
+        inversiones: 0
+      }))
+
+      transactions.forEach(t => {
+        if (t.categoryName === 'Ajuste' || t.subcategoryName?.includes('Ajuste')) return
+        const [y, m, d] = t.date.split('-').map(Number)
+        const tDate = new Date(y, m - 1, d)
+
+        if (tDate.getFullYear() === selectedYear) {
+          const monthIdx = m - 1
+          if (monthIdx >= 0 && monthIdx < 12) {
+            const isAhorro = t.type === 'ahorro' || (t.categoryName === 'Finanzas' && t.subcategoryName === 'Ahorro')
+            const isInversion = t.type === 'inversion' || (t.categoryName === 'Finanzas' && t.subcategoryName === 'Inversión')
+
+            if (t.type === 'ingreso') {
+              monthlyDataForYear[monthIdx].ingresos += t.amount
+            } else if (isAhorro) {
+              monthlyDataForYear[monthIdx].ahorros += t.amount
+            } else if (isInversion) {
+              monthlyDataForYear[monthIdx].inversiones += t.amount
+            } else {
+              monthlyDataForYear[monthIdx].gastos += t.amount
+            }
+          }
+        }
+      })
+      barData = monthlyDataForYear
+
+    } else {
+      // Total (Historical monthly evolution of all time, sliced to last 12 months)
+      const allMonthlyData = {}
+      transactions.forEach(t => {
+        if (t.categoryName === 'Ajuste' || t.subcategoryName?.includes('Ajuste')) return
+        const [y, m, d] = t.date.split('-').map(Number)
+        const monthKey = `${y}-${String(m).padStart(2, '0')}`
+
+        if (!allMonthlyData[monthKey]) {
+          allMonthlyData[monthKey] = {
+            name: monthKey,
+            ingresos: 0,
+            gastos: 0,
+            ahorros: 0,
+            inversiones: 0
+          }
+        }
+
+        const isAhorro = t.type === 'ahorro' || (t.categoryName === 'Finanzas' && t.subcategoryName === 'Ahorro')
+        const isInversion = t.type === 'inversion' || (t.categoryName === 'Finanzas' && t.subcategoryName === 'Inversión')
+
+        if (t.type === 'ingreso') {
+          allMonthlyData[monthKey].ingresos += t.amount
+        } else if (isAhorro) {
+          allMonthlyData[monthKey].ahorros += t.amount
+        } else if (isInversion) {
+          allMonthlyData[monthKey].inversiones += t.amount
+        } else {
+          allMonthlyData[monthKey].gastos += t.amount
+        }
+      })
+      barData = Object.values(allMonthlyData).sort((a, b) => a.name.localeCompare(b.name)).slice(-12)
+    }
+
+    // 2. Generate categoryAllocation and totalIncomeFiltered based on filter
     transactions.forEach(t => {
-      // Excluir ajustes
       if (t.categoryName === 'Ajuste' || t.subcategoryName?.includes('Ajuste')) return
 
-      // Parseo robusto de fecha
       const [y, m, d] = t.date.split('-').map(Number)
       const tDate = new Date(y, m - 1, d)
-      
-      const monthKey = `${tDate.getFullYear()}-${String(tDate.getMonth() + 1).padStart(2, '0')}`
-
-      if (!monthlyData[monthKey]) {
-        monthlyData[monthKey] = { name: monthKey, ingresos: 0, gastos: 0, ahorros: 0, inversiones: 0 }
-      }
 
       const isAhorro = t.type === 'ahorro' || (t.categoryName === 'Finanzas' && t.subcategoryName === 'Ahorro')
       const isInversion = t.type === 'inversion' || (t.categoryName === 'Finanzas' && t.subcategoryName === 'Inversión')
 
       if (t.type === 'ingreso') {
-        monthlyData[monthKey].ingresos += t.amount
-        
         let include = true
         if (expenseView === 'mensual') {
-            include = tDate.getMonth() === selectedMonth && tDate.getFullYear() === selectedYear
+          include = tDate.getMonth() === selectedMonth && tDate.getFullYear() === selectedYear
         } else if (expenseView === 'anual') {
-            include = tDate.getFullYear() === selectedYear
+          include = tDate.getFullYear() === selectedYear
         }
         if (include) {
-            totalIncomeFiltered += t.amount
+          totalIncomeFiltered += t.amount
         }
-      } else if (isAhorro) {
-        monthlyData[monthKey].ahorros += t.amount
-      } else if (isInversion) {
-        monthlyData[monthKey].inversiones += t.amount
-      } else {
-        monthlyData[monthKey].gastos += t.amount
       }
 
       if (t.type === 'gasto' || t.type === 'ahorro' || t.type === 'inversion') {
-        
-        // Filter based on expenseView and selected period
         let include = true
         if (expenseView === 'mensual') {
-            include = tDate.getMonth() === selectedMonth && tDate.getFullYear() === selectedYear
+          include = tDate.getMonth() === selectedMonth && tDate.getFullYear() === selectedYear
         } else if (expenseView === 'anual') {
-            include = tDate.getFullYear() === selectedYear
+          include = tDate.getFullYear() === selectedYear
         }
 
         if (include) {
-            const catName = isAhorro ? 'Ahorro' : isInversion ? 'Inversión' : (t.categoryName || 'Otros')
-            const subName = isAhorro ? 'General' : isInversion ? 'General' : (t.subcategoryName || 'Otros')
+          const catName = isAhorro ? 'Ahorro' : isInversion ? 'Inversión' : (t.categoryName || 'Otros')
+          const subName = isAhorro ? 'General' : isInversion ? 'General' : (t.subcategoryName || 'Otros')
 
-            if (!categoryAllocation[catName]) {
-              categoryAllocation[catName] = { name: catName, value: 0, subcategories: {} }
-            }
-            categoryAllocation[catName].value += t.amount
-            
-            if (!categoryAllocation[catName].subcategories[subName]) {
-              categoryAllocation[catName].subcategories[subName] = { name: subName, value: 0 }
-            }
-            categoryAllocation[catName].subcategories[subName].value += t.amount
+          if (!categoryAllocation[catName]) {
+            categoryAllocation[catName] = { name: catName, value: 0, subcategories: {} }
+          }
+          categoryAllocation[catName].value += t.amount
+          
+          if (!categoryAllocation[catName].subcategories[subName]) {
+            categoryAllocation[catName].subcategories[subName] = { name: subName, value: 0 }
+          }
+          categoryAllocation[catName].subcategories[subName].value += t.amount
         }
       }
     })
-
-    const barData = Object.values(monthlyData).sort((a, b) => a.name.localeCompare(b.name)).slice(-12)
     
     const totalExpensesFiltered = Object.values(categoryAllocation).reduce((acc, c) => acc + c.value, 0)
     const hasFreeMargin = totalIncomeFiltered > totalExpensesFiltered
@@ -300,7 +386,7 @@ export default function DashboardView() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Calendar size={18} style={{ color: 'var(--accent)' }} />
             <h3 style={{ fontSize: 13, color: 'var(--text-main)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Análisis de Período Temporal <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'none', marginLeft: 8, letterSpacing: 'normal', fontWeight: 'normal' }}>(Afecta a la distribución y evolución mensual)</span>
+              Análisis de Período Temporal <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'none', marginLeft: 8, letterSpacing: 'normal', fontWeight: 'normal' }}>(Afecta a la distribución y evolución temporal)</span>
             </h3>
           </div>
           
@@ -439,10 +525,12 @@ export default function DashboardView() {
             </div>
           </div>
 
-          {/* Card 2: Evolución Mensual */}
+          {/* Card 2: Evolución Temporal */}
           <div style={{ background: 'rgba(0,0,0,0.01)', border: '1px solid var(--border)', borderRadius: 16, padding: 20, display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Evolución Mensual</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                {expenseView === 'mensual' ? 'Flujo del Mes' : expenseView === 'anual' ? 'Evolución Mensual' : 'Evolución Histórica'}
+              </span>
               <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>(Clic en leyenda para filtrar)</span>
             </div>
             
